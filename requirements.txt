@@ -4,3 +4,4 @@ openbmb
 fastapi
 uvicorn
 pillow
+peft
