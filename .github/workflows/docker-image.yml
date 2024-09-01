@@ -1,4 +1,3 @@
-
 name: Docker Image CI
 
 on:
@@ -8,9 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -20,16 +17,22 @@ jobs:
       uses: docker/setup-buildx-action@v2
 
     - name: Log in to Docker Hub
-      uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      uses: docker/login-action@v2
       with:
         username: nemesis55
         password: sksingh55
 
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag mincpm-llama3-v2_5:$(date +%s)
+      id: build
+      run: |
+        TIMESTAMP=$(date +%s)
+        docker build . --file Dockerfile --tag mincpm-llama3-v2_5:$TIMESTAMP
+        echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
     - name: Tag Docker image
-      run: docker tag mincpm-llama3-v2_5:$(date +%s)  nemesis55/mincpm-llama3-v2_5:latest
+      run: |
+        docker tag mincpm-llama3-v2_5:$TIMESTAMP nemesis55/mincpm-llama3-v2_5:latest
 
     - name: Push Docker image to Docker Hub
-      run: docker push  nemesis55/mincpm-llama3-v2_5:latest
+      run: |
+        docker push nemesis55/mincpm-llama3-v2_5:latest
