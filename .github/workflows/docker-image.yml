@@ -16,8 +16,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
     - name: Log in to Docker Hub
-      run: echo nemesis55 | docker login -u sksingh55 --password-stdin
+      uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      with:
+        username: nemesis55
+        password: sksingh55
 
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag mincpm-llama3-v2_5:$(date +%s)
