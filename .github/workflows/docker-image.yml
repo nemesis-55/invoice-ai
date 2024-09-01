@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Log in to Docker Hub
-      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      run: echo nemesis55 | docker login -u sksingh@55 --password-stdin
 
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag mincpm-llama3-v2_5:$(date +%s)
