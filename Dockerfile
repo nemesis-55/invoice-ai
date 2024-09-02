@@ -24,8 +24,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 WORKDIR /app
 
-# Expose the port
-EXPOSE 8000
-
-# Command to run the app
-CMD ["python", "app.py"]
+# Command to run the handler
+CMD ["runpod", "--handler", "handler.py"]

@@ -7,4 +7,4 @@ pillow
 peft
 torchvision
 python-multipart
-uvicorn
+runpod
