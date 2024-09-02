@@ -33,9 +33,13 @@ model = adapter
 def handler(event):
     try:
         # Extract the prompt and image data from the event
+        print(f"event: {event}")
         event_data = event.get("input")
+        print(f"event_data: {event_data}")
         prompt = event_data.get("prompt", "")
+        print(f"prompt: {prompt}")
         image_data = event_data.get("image", None)
+        print(f"image_data: {image_data}")
         
         if image_data:
             print("Processing image...")
