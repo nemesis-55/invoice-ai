@@ -19,10 +19,13 @@ print("Loading base model...")
 model = AutoModelForCausalLM.from_pretrained(base_model_name, trust_remote_code=True)
 print("Base model loaded.")
 
+# Convert model to half precision
+model = model.half()
+
 # Move model to GPU and set to evaluation mode
 model = model.cuda()
 model.eval()
-print("Model moved to GPU and set to evaluation mode.")
+print("Model moved to GPU, converted to half precision, and set to evaluation mode.")
 
 # Load and apply the adapter
 print(f"Loading adapter from {adapter_name}...")
