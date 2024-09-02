@@ -19,10 +19,10 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install runpod
 
-# Copy your model code
-COPY . /app
-WORKDIR /app
+# Add your file
+ADD handler.py .
 
-# Command to run the handler
-CMD ["runpod", "--handler", "handler.py"]
+# Call your file when your container starts
+CMD [ "python", "-u", "/handler.py" ]
