@@ -3,6 +3,7 @@ from peft import PeftModel, PeftConfig
 from PIL import Image
 import torch
 import io
+import runpod
 
 # Define model and adapter paths
 base_model_name = "openbmb/MiniCPM-Llama3-V-2_5"
@@ -76,3 +77,5 @@ handler_functions = {
     "handler": handler,
     "health_check": health_check
 }
+
+runpod.serverless.start({"handler": handler})
