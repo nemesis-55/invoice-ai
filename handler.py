@@ -3,6 +3,7 @@ from peft import PeftModel, PeftConfig
 from PIL import Image
 import torch
 import io
+import base64
 import runpod
 
 # Define model and adapter paths
@@ -43,7 +44,9 @@ def handler(event):
         
         if image_data:
             print("Processing image...")
-            image = Image.open(io.BytesIO(image_data)).convert("RGB")
+            # If image_data is coming as a string (assumed to be Base64-encoded)
+            image_bytes = base64.b64decode(image_data)
+            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
             print("Image processed.")
             msgs = [{
                 "role": "user",
