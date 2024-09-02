@@ -67,7 +67,7 @@ def handler(event):
                 image=None,
                 msgs=msgs,
                 tokenizer=tokenizer,
-                max_new_tokens=4096
+                max_new_tokens=8192
             )
         print("Response generated.")
         return {"response": output}
