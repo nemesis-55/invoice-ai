@@ -21,7 +21,7 @@ print("Base model loaded in 16bit precision.")
 
 # Load and apply the adapter
 print(f"Loading adapter from {adapter_name}...")
-model = PeftModel.from_pretrained(model, adapter_name)
+model = PeftModel.from_pretrained(model, adapter_name).cuda().eval()
 
 
 def handler(event):
