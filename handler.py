@@ -5,6 +5,7 @@ import torch
 import io
 import base64
 import runpod
+import bitsandbytes as bnb  # Required for 8-bit model loading
 
 # Define model and adapter paths
 base_model_name = "openbmb/MiniCPM-Llama3-V-2_5"
@@ -15,17 +16,14 @@ print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=True)
 print("Tokenizer loaded.")
 
-print("Loading base model...")
-model = AutoModelForCausalLM.from_pretrained(base_model_name, trust_remote_code=True)
-print("Base model loaded.")
+print("Loading base model with 8-bit precision onto GPU...")
+# Use device_map={"gpu": 0} to explicitly load model onto GPU 0
+model = AutoModelForCausalLM.from_pretrained(base_model_name, trust_remote_code=True, load_in_8bit=True, device_map={"": "cuda:0"})
+print("Base model loaded with 8-bit precision onto GPU.")
 
-# Convert model to half precision
-model = model.half()
-
-# Move model to GPU and set to evaluation mode
-model = model.cuda()
+# Set model to evaluation mode
 model.eval()
-print("Model moved to GPU, converted to half precision, and set to evaluation mode.")
+print("Model set to evaluation mode.")
 
 # Load and apply the adapter
 print(f"Loading adapter from {adapter_name}...")

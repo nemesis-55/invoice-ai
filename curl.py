@@ -44,7 +44,7 @@ if __name__ == "__main__":
     image.show()
 
     # The URL of your API endpoint where the handler is running
-    url = "https://api.runpod.ai/v2/i5hcmz42bmoqc2/run"
+    url = "https://api.runpod.ai/v2/gge2og9xni1qrf/run"
 
     # The Authorization key for the API
     auth_key = "GDUKZCHH9CNQF3X44CU53Z5WVX18PD4OWXRH1CGS"
