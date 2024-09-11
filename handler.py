@@ -1,9 +1,10 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import PeftModel, PeftConfig
+from peft import PeftModel
 from PIL import Image
 import io
 import base64
 import runpod
+import torch
 
 # Define model and adapter paths
 base_model_name = "openbmb/MiniCPM-2B-dpo-bf16-llama-format"
@@ -11,12 +12,12 @@ adapter_name = "Zorro123444/xylem_invoice_extracter"
 
 # Load tokenizer
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=True)
 print("Tokenizer loaded.")
 
-print("Loading base model in 32bit precision onto GPU...")
-model = AutoModelForCausalLM.from_pretrained(base_model_name, device_map="cuda", trust_remote_code=True)
-print("Base model loaded in 32bit precision.")
+print("Loading base model in 16bit precision onto GPU...")
+model = AutoModelForCausalLM.from_pretrained(base_model_name, torch_dtype=torch.bfloat16, device_map="cuda", trust_remote_code=True)
+print("Base model loaded in 16bit precision.")
 
 # Load and apply the adapter
 print(f"Loading adapter from {adapter_name}...")
