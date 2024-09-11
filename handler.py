@@ -16,7 +16,7 @@ tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=Tru
 print("Tokenizer loaded.")
 
 print("Loading base model in 16bit precision onto GPU...")
-model = AutoModelForCausalLM.from_pretrained(base_model_name, torch_dtype=torch.bfloat16, device_map="cuda", trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(base_model_name, device_map="cuda", trust_remote_code=True)
 print("Base model loaded in 16bit precision.")
 
 # Load and apply the adapter
