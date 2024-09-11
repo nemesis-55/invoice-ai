@@ -18,7 +18,7 @@ print("Tokenizer loaded.")
 
 print("Loading base model with 8-bit precision onto GPU...")
 # Use device_map={"gpu": 0} to explicitly load model onto GPU 0
-model = AutoModelForCausalLM.from_pretrained(base_model_name, trust_remote_code=True, torch_dtype=torch.float16, device_map={"": "cuda:0"})
+model = AutoModelForCausalLM.from_pretrained(base_model_name, trust_remote_code=True, load_in_8bit=True, device_map={"": "cuda:0"})
 print("Base model loaded with 8-bit precision onto GPU.")
 
 # Set model to evaluation mode
