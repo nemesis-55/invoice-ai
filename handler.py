@@ -1,13 +1,14 @@
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, LlamaForCausalLM
 from peft import PeftModel, PeftConfig
 from PIL import Image
 import io
 import base64
 import runpod
+from bitsandbytes import BitsAndBytesConfig  # Import the new config for 8-bit quantization
 
 # Define model and adapter paths
-base_model_name = "openbmb/MiniCPM-Llama3-V-2_5"
+base_model_name = "openbmb/MiniCPM-2B-dpo-bf16-llama-format"
 adapter_name = "Zorro123444/xylem_invoice_extracter"
 
 # Choose precision mode: '8bit' or '16bit'
@@ -15,17 +16,18 @@ precision_mode = "8bit"  # Change this to '16bit' to use 16-bit precision
 
 # Load tokenizer
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(base_model_name)
 print("Tokenizer loaded.")
 
 # Load model based on precision mode
 if precision_mode == "8bit":
     print("Loading base model with 8-bit precision onto GPU using BitsAndBytesConfig...")
-    model = AutoModelForCausalLM.from_pretrained(base_model_name, load_in_8bit=True, device_map="cuda", trust_remote_code=True)
+    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+    model = LlamaForCausalLM.from_pretrained(base_model_name, quantization_config=quantization_config, device_map="cuda", trust_remote_code=True)
     print("Base model loaded with 8-bit precision.")
 elif precision_mode == "16bit":
     print("Loading base model in bfloat16 precision onto GPU...")
-    model = AutoModelForCausalLM.from_pretrained(base_model_name, torch_dtype=torch.bfloat16, device_map="cuda", trust_remote_code=True)
+    model = LlamaForCausalLM.from_pretrained(base_model_name, torch_dtype=torch.bfloat16, device_map="cuda", trust_remote_code=True)
     print("Base model loaded in bfloat16 precision.")
 
 # Set model to evaluation mode
@@ -35,6 +37,16 @@ print("Model set to evaluation mode.")
 # Load and apply the adapter
 print(f"Loading adapter from {adapter_name}...")
 adapter = PeftModel.from_pretrained(model, adapter_name)
+adapter_config = PeftConfig.from_pretrained(adapter_name)
+print(f"Adapter loaded with config: {adapter_config}")
+
+# Check if the model is using 8-bit precision
+if precision_mode == "8bit":
+    # For 8-bit models, skip gradient operations if not required
+    for param in model.parameters():
+        param.requires_grad = False
+
+# Use the adapter in the model
 model = adapter
 
 def handler(event):
@@ -60,12 +72,9 @@ def handler(event):
         
         # Tokenize and generate response
         print("Generating response...")
-        output = model.chat(
-                image=None,
-                msgs=msgs,
-                tokenizer=tokenizer,
-                max_new_tokens=8192
-            )
+        input_ids = tokenizer.encode(f"<用户>{prompt}<AI>", return_tensors='pt', add_special_tokens=True).cuda()
+        responds = model.generate(input_ids, temperature=0.3, top_p=0.8, repetition_penalty=1.02, max_length=1024)
+        output = tokenizer.decode(responds[0], skip_special_tokens=True)
         print("Response generated.")
         
         return {"response": output}
