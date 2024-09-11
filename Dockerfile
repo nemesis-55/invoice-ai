@@ -20,6 +20,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install runpod
+RUN pip install bitsandbytes
 
 # Define your working directory
 WORKDIR /
