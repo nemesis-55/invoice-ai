@@ -11,7 +11,7 @@ base_model_name = "openbmb/MiniCPM-Llama3-V-2_5"
 adapter_name = "Zorro123444/xylem_invoice_extracter"
 
 # Choose precision mode: '8bit' or '16bit'
-precision_mode = "16bit"  # Change this to '16bit' to use 16-bit precision
+precision_mode = "8bit"  # Change this to '16bit' to use 16-bit precision
 
 # Load tokenizer
 print("Loading tokenizer...")
