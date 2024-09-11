@@ -1,11 +1,6 @@
 torch
 transformers
-openbmb
-fastapi
-uvicorn
 pillow
 peft
 torchvision
-python-multipart
 runpod
-bitsandbytes
