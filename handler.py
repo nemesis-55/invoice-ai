@@ -7,7 +7,7 @@ import runpod
 import torch
 
 # Define model and adapter paths
-base_model_name = "openbmb/MiniCPM-2B-dpo-bf16-llama-format"
+base_model_name = "openbmb/MiniCPM-Llama3-V-2_5"
 adapter_name = "Zorro123444/xylem_invoice_extracter"
 
 # Load tokenizer
