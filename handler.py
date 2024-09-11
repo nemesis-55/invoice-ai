@@ -65,7 +65,7 @@ def handler(event):
         # Tokenize and generate response
         print("Generating response...")
         input_ids = tokenizer.encode(f"<用户>{prompt}<AI>", return_tensors='pt', add_special_tokens=True).cuda()
-        responds = model.generate(input_ids, temperature=0.3, top_p=0.8, repetition_penalty=1.02, max_length=1024)
+        responds = model.generate(input_ids, temperature=0.3, top_p=0.8, repetition_penalty=1.02, max_length=4096)
         output = tokenizer.decode(responds[0], skip_special_tokens=True)
         print("Response generated.")
         
