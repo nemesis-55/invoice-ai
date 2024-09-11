@@ -47,7 +47,8 @@ def handler(event):
         
         # Tokenize and generate response
         print("Generating response...")
-        output = model.chat(
+        with torch.no_grad():
+            output = model.chat(
                 image=None,
                 msgs=msgs,
                 tokenizer=tokenizer,
