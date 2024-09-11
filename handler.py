@@ -5,7 +5,6 @@ from PIL import Image
 import io
 import base64
 import runpod
-from bitsandbytes import BitsAndBytesConfig  # Import the new config for 8-bit quantization
 
 # Define model and adapter paths
 base_model_name = "openbmb/MiniCPM-Llama3-V-2_5"
@@ -22,8 +21,7 @@ print("Tokenizer loaded.")
 # Load model based on precision mode
 if precision_mode == "8bit":
     print("Loading base model with 8-bit precision onto GPU using BitsAndBytesConfig...")
-    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
-    model = LlamaForCausalLM.from_pretrained(base_model_name, quantization_config=quantization_config, device_map="cuda", trust_remote_code=True)
+    model = LlamaForCausalLM.from_pretrained(base_model_name, load_in_8bit=True, device_map="cuda", trust_remote_code=True)
     print("Base model loaded with 8-bit precision.")
 elif precision_mode == "16bit":
     print("Loading base model in bfloat16 precision onto GPU...")
