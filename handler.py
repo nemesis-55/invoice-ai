@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoTokenizer, LlamaForCausalLM
+from transformers import LlamaTokenizerFast, LlamaForCausalLM
 from peft import PeftModel, PeftConfig
 from PIL import Image
 import io
@@ -15,7 +15,7 @@ precision_mode = "16bit"  # Change this to '16bit' to use 16-bit precision
 
 # Load tokenizer
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+tokenizer = LlamaTokenizerFast.from_pretrained(base_model_name, trust_remote_code=True)
 print("Tokenizer loaded.")
 
 # Load model based on precision mode
