@@ -7,7 +7,7 @@ import torch
 
 # Define model and adapter paths
 model_name = "openbmb/MiniCPM-Llama3-V-2_5"
-adapter_name = "Zorro123444/xylem_invoice_extracter"
+adapter_name = "Zorro123444/invoice_extracter_xylem1.2.0"
 
 # Load tokenizer
 print("Loading tokenizer...")
