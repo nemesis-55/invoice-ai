@@ -1,3 +1,4 @@
+import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from PIL import Image
 import io
@@ -5,25 +6,23 @@ import base64
 import runpod
 import torch
 
-# Define model and adapter paths
-model_name = "openbmb/MiniCPM-Llama3-V-2_5"
-adapter_name = "Zorro123444/invoice_extracter_xylem1.2.0"
+# Load model path from environment variables
+model_path = os.getenv("MODEL_PATH", "/workspace/model")
 
-# Load tokenizer
+# Load tokenizer and model from the pre-downloaded directory
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 print("Tokenizer loaded.")
 
-print("Loading  model in 16bit precision onto GPU...")
+print("Loading model in 16-bit precision onto GPU...")
 model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.bfloat16,
-        trust_remote_code=True,
-        device_map="balanced"  # Automatically balance model across available GPUs
-    ).cuda().eval()
-    
-print(" model loaded in 16bit precision.")
+    model_path,
+    torch_dtype=torch.bfloat16,
+    trust_remote_code=True,
+    device_map="balanced"  # Automatically balance model across available GPUs
+).cuda().eval()
 
+print("Model loaded in 16-bit precision.")
 
 def handler(event):
     try:
