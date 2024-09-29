@@ -25,14 +25,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Create a directory for storing model files
 RUN mkdir -p ${MODEL_PATH}
 
-# Clone the repository containing the Dockerfile
-RUN git clone https://huggingface.co/Zorro123444/invoice_extracter_xylem2.1.0 ${MODEL_PATH}/model_repo
-
-# Copy the Dockerfile from the cloned repository
-COPY ${MODEL_PATH}/model_repo/Dockerfile .
-
-# Build the model using the cloned Dockerfile
-RUN docker build -t ${MODEL_NAME}:latest .
+# Clone the Hugging Face repository to the model path (note: no Dockerfile in HF repo)
+RUN git lfs install && \
+    git clone https://huggingface.co/Zorro123444/invoice_extracter_xylem2.1.0 ${MODEL_PATH}
 
 # Define your working directory
 WORKDIR /workspace
@@ -40,5 +35,5 @@ WORKDIR /workspace
 # Add your handler file
 ADD handler.py .
 
-# Call your file when your container starts
+# Define the command to run your handler
 CMD [ "python", "-u", "/workspace/handler.py" ]
