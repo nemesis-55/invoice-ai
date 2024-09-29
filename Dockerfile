@@ -29,7 +29,7 @@ RUN mkdir -p ${MODEL_PATH}
 RUN git clone https://huggingface.co/${MODEL_NAME} ${MODEL_PATH}
 
 # Add your handler file
-ADD handler.py .
+COPY handler.py /workspace/handler.py
 
 # Call your file when your container starts
 CMD [ "python", "-u", "/workspace/handler.py" ]
