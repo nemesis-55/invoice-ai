@@ -1,4 +1,3 @@
-# Use a base image with Python and CUDA
 FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
 
 # Set environment variables
@@ -13,6 +12,7 @@ RUN apt-get update && apt-get install -y \
   git \
   wget \
   curl \
+  git-lfs \
   && rm -rf /var/lib/apt/lists/*
 
 # Set Python3 as default
@@ -25,15 +25,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Create a directory for storing model files
 RUN mkdir -p ${MODEL_PATH}
 
-# Clone the Hugging Face repository to the model path (note: no Dockerfile in HF repo)
-RUN git lfs install && \
-    git clone https://huggingface.co/Zorro123444/invoice_extracter_xylem2.1.0 ${MODEL_PATH}
-
-# Define your working directory
-WORKDIR /workspace
+# Clone the Hugging Face repository
+RUN git clone https://huggingface.co/${MODEL_NAME} ${MODEL_PATH}
 
 # Add your handler file
 ADD handler.py .
 
-# Define the command to run your handler
+# Call your file when your container starts
 CMD [ "python", "-u", "/workspace/handler.py" ]
