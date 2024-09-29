@@ -25,9 +25,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Create a directory for storing model files
 RUN mkdir -p ${MODEL_PATH}
 
-# Clone the Hugging Face repository
-RUN git clone https://huggingface.co/${MODEL_NAME} ${MODEL_PATH}
-
 # Add your handler file
 COPY handler.py /workspace/handler.py
 
