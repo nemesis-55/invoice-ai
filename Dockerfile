@@ -31,7 +31,7 @@ RUN git lfs install && \
 
 # Now, fetch the large files separately
 RUN cd ${MODEL_PATH} && git lfs pull
-
+RUN ls -R ${MODEL_PATH}
 # Add your handler file
 COPY handler.py /workspace/handler.py
 
