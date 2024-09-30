@@ -12,7 +12,7 @@ model_path = os.getenv('MODEL_PATH', './workspace/model')
 
 # Load tokenizer and model from the pre-downloaded directory
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(f"{model_path}/{model_name}", trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 print("Tokenizer loaded.")
 
 print("Loading model in 16-bit precision onto GPU...")
