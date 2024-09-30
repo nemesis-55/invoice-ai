@@ -2,7 +2,7 @@ FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV MODEL_NAME="Zorro123444/invoice_extracter_xylem2.1.0"
+ENV MODEL_NAME="Zorro123444/invoice_extracter_xylem2.1.1"
 ENV MODEL_PATH="/workspace/model"
 
 # Install Python and required system dependencies
@@ -24,6 +24,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a directory for storing model files
 RUN mkdir -p ${MODEL_PATH}
+
+# Download or clone the model from Hugging Face directly into the /workspace/model folder
+RUN git lfs install && \
+    git clone https://huggingface.co/${MODEL_NAME} ${MODEL_PATH}
 
 # Add your handler file
 COPY handler.py /workspace/handler.py
