@@ -25,11 +25,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Create a directory for storing model files
 RUN mkdir -p ${MODEL_PATH}
 
-# Download or clone the model from Hugging Face directly into the /workspace/model folder
-RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.rpm.sh | bash
-RUN yum install git-lfs -y
-RUN git lfs install
-RUN git clone https://huggingface.co/${MODEL_NAME} ${MODEL_PATH}
+# Initialize Git LFS and clone the model
+RUN git lfs install && \
+    git clone https://huggingface.co/${MODEL_NAME} ${MODEL_PATH}
 
 # Add your handler file
 COPY handler.py /workspace/handler.py
