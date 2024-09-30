@@ -8,16 +8,17 @@ import torch
 import json
 
 # Load model path from environment variables
-model_path = "Zorro123444/invoice_extracter_xylem2.1.0"
+model_path = os.getenv('MODEL_PATH', '/workspace/model')
+model_name = os.getenv('MODEL_NAME', 'Zorro123444/invoice_extracter_xylem2.1.1')
 
 # Load tokenizer and model from the pre-downloaded directory
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(f"{model_path}/{model_name}", trust_remote_code=True)
 print("Tokenizer loaded.")
 
 print("Loading model in 16-bit precision onto GPU...")
 model = AutoModelForCausalLM.from_pretrained(
-    model_path,
+    f"{model_path}/{model_name}",
     trust_remote_code=True,
     device_map="balanced"  # Automatically balance model across available GPUs
 ).cuda().eval()
