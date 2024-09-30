@@ -8,7 +8,7 @@ import torch
 import json
 
 # Load model path from environment variables
-model_path = os.getenv('MODEL_PATH', './workspace/model')
+model_path = os.getenv('MODEL_PATH', 'Zorro123444/invoice_extracter_xylem_test1.0.0')
 
 # Load tokenizer and model from the pre-downloaded directory
 print("Loading tokenizer...")
