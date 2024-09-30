@@ -13,14 +13,14 @@ model_path = os.getenv('MODEL_PATH', './workspace/model')
 # Load tokenizer and model from the pre-downloaded directory
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-print("Tokenizer loaded.")
-
-print("Loading model in 16-bit precision onto GPU...")
+    
+# Load the model on GPUs (balanced across GPUs)
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     trust_remote_code=True,
-    device_map="balanced"  # Automatically balance model across available GPUs
-).cuda().eval()
+    torch_dtype=torch.bfloat16,
+    device_map="balanced"
+)
 
 print("Model loaded in 16-bit precision.")
 
