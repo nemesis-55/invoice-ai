@@ -3,7 +3,7 @@ FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV MODEL_NAME="Zorro123444/invoice_extracter_xylem2.1.1"
-ENV MODEL_PATH="/workspace/model"
+ENV MODEL_PATH="./workspace/model"
 ENV GIT_LFS_SKIP_SMUDGE=1  
 # Install Python and required system dependencies
 RUN apt-get update && apt-get install -y \
