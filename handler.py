@@ -7,7 +7,7 @@ import runpod
 import torch
 
 # Load model path from environment variables
-model_check_folder = "Zorro123444/invoice_extracter_xylem_test1.0.0"
+model_check_folder = "Zorro123444/invoice_extracter_xylem_test"
 # Load the tokenizer with trust_remote_code enabled
 tokenizer = AutoTokenizer.from_pretrained(model_check_folder, trust_remote_code=True)
     
@@ -15,7 +15,6 @@ tokenizer = AutoTokenizer.from_pretrained(model_check_folder, trust_remote_code=
 model = AutoModelForCausalLM.from_pretrained(
     model_check_folder,
     trust_remote_code=True,
-    torch_dtype=torch.bfloat16,
     device_map="balanced"
 )
 
