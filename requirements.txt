@@ -4,3 +4,9 @@ pillow
 torchvision
 runpod
 accelerate
+pymupdf
+deepspeed
+peft
+timm
+sentencepiece
+tensorboardX

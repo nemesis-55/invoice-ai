@@ -15,6 +15,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_check_folder, trust_remote_code=
 model = AutoModelForCausalLM.from_pretrained(
     model_check_folder,
     trust_remote_code=True,
+    torch_dtype=torch.bfloat16,
     device_map="balanced"
 )
 

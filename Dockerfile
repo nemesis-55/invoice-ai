@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # RUN cd ${MODEL_PATH} && git lfs pull
 # RUN ls -lhR ${MODEL_PATH}
 # Add your handler file
-COPY handler.py /workspace/handler.py
+COPY handler.py ./
 
 # Call your file when your container starts
-CMD [ "python", "-u", "/workspace/handler.py" ]
+CMD [ "python", "-u", "./handler.py" ]
