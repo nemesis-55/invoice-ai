@@ -5,9 +5,11 @@ import io
 import base64
 import runpod
 import torch
+import os
 
 # Load model path from environment variables
-model_name = "Zorro123444/invoice_extracter_xylem_test"
+model_name = os.getenv("MODEL_DIR", "./model")
+
 # Load the tokenizer with trust_remote_code enabled
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     
