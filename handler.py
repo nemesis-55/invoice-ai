@@ -37,7 +37,7 @@ def generate_detailed_prompt(image, ocr_data):
 
     # Create a detailed description of the task
     question = (
-        "<image> You are provided with an image and OCR extracted text of an invoice PDF page.\n\n"
+        "You are provided with an image and OCR extracted text of an invoice PDF page.\n\n"
         "OCR data starts here:\n"
         f"{ocr_data}\n\n"
         "OCR data ends here.\n\n"
