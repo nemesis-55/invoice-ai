@@ -14,8 +14,10 @@ tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 # Load the model on GPUs (balanced across GPUs)
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
-    trust_remote_code=True
-).cuda()
+    trust_remote_code=True,
+    torch_dtype=torch.bfloat16,
+    device_map="cuda"
+)
 
 print("Model loaded in 16-bit precision.")
 
