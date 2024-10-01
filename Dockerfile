@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
   git \
   wget \
   curl \
+  git-lfs \
+  && git lfs install \
   && rm -rf /var/lib/apt/lists/*
 
 # Set Python3 as default
@@ -20,10 +22,10 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download the model and tokenizer during the build process
-RUN python -c "from transformers import AutoModelForCausalLM, AutoTokenizer; \
-    AutoModelForCausalLM.from_pretrained('Zorro123444/invoice_extracter_xylem_test', cache_dir='./model'); \
-    AutoTokenizer.from_pretrained('Zorro123444/invoice_extracter_xylem_test', cache_dir='./model')"
+# Clone the model repository using Git LFS and pull the large files
+RUN git clone https://huggingface.co/Zorro123444/invoice_extracter_xylem_test ./model \
+  && cd ./model \
+  && git lfs pull
 
 # Copy the handler script
 COPY handler.py ./
