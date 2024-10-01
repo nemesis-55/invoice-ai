@@ -7,23 +7,21 @@ import runpod
 import torch
 
 # Load model path from environment variables
-model_check_folder = "Zorro123444/invoice_extracter_xylem_test"
+model_name = "Zorro123444/invoice_extracter_xylem_test"
 # Load the tokenizer with trust_remote_code enabled
-tokenizer = AutoTokenizer.from_pretrained(model_check_folder, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     
 # Load the model on GPUs (balanced across GPUs)
 model = AutoModelForCausalLM.from_pretrained(
-    model_check_folder,
-    trust_remote_code=True,
-    torch_dtype=torch.bfloat16,
-    device_map="balanced"
-)
+    model_name,
+    trust_remote_code=True
+).cuda()
 
 print("Model loaded in 16-bit precision.")
 
 def generate_detailed_prompt(image, ocr_data):
     """
-    Generates a detailed prompt for training a GPT model to extract JSON invoice data from an image.
+    Generates a compact prompt for training a GPT model to extract JSON invoice data from an image.
 
     Args:
         image_path (str): Path to the image file.
@@ -33,72 +31,65 @@ def generate_detailed_prompt(image, ocr_data):
     Returns:
         dict: A dictionary containing the detailed prompt structure.
     """
-
-
-    # Create a detailed description of the task
     question = (
         "You are provided with an image and OCR extracted text of an invoice PDF page.\n\n"
-        "OCR data starts here:\n"
+        "OCR data:\n"
         f"{ocr_data}\n\n"
-        "OCR data ends here.\n\n"
-        "Task: Use the provided image and OCR text to extract specific information from the invoice image and output it as a JSON object with the following fields:\n\n"
-
-        "1. **OrderNumber**: Extract the order number from the invoice. It is usually a unique identifier for the order, often displayed prominently at the top or near the order details section.\n"
-        "2. **InvoiceNumber**: Extract the invoice number, which is a unique number assigned to this invoice. Look for labels like 'Invoice No.', 'Invoice Number', or similar.\n"
-        "3. **BuyerName**: Extract the full name of the buyer. This information is typically found in the 'Bill To' or 'Buyer' section of the invoice.\n"
-        "4. **BuyerAddress1**: Extract the first line of the buyer's address. It usually includes the street address or P.O. Box.\n"
-        "5. **BuyerZipCode**: Extract the postal code for the buyer’s address. This is usually found alongside the address details.\n"
-        "6. **BuyerCity**: Extract the city of the buyer's address. It is often located near the postal code and address details.\n"
-        "7. **BuyerCountry**: Extract the country of the buyer’s address. Look for labels such as 'Country' or 'Country of Residence'.\n"
-        "8. **ReceiverName**: Extract the full name of the receiver. This is typically found in the 'Ship To' or 'Receiver' section of the invoice.\n"
-        "9. **ReceiverAddress1**: Extract the first line of the receiver’s address, similar to how you would extract the buyer’s address.\n"
-        "10. **ReceiverZipCode**: Extract the postal code for the receiver's address. This is usually close to the address information.\n"
-        "11. **ReceiverCity**: Extract the city for the receiver’s address. It should be near the postal code and address details.\n"
-        "12. **ReceiverCountry**: Extract the country of the receiver's address. Look for similar labels as for the buyer's country.\n"
-        "13. **SellerName**: Extract the name of the seller or company issuing the invoice. This information is often found at the top of the invoice or in the 'Sold By' section.\n"
-        "14. **OrderDate**: Extract the order date from the invoice. It is typically listed near the invoice number or in the order details section, formatted as 'YYYY-MM-DD'.\n"
-        "15. **Currency**: Extract the currency used for the invoice. Look for symbols or abbreviations such as '$', 'EUR', or 'NOK'.\n"
-        "16. **TermsOfDelCode**: Extract the delivery terms code or description. This might be found in the shipping or terms section of the invoice, describing how the delivery is handled.\n"
-        "17. **OrderItems**: Extract each item listed on the invoice as a list of objects, each containing the following fields:\n"
-        "    - **ArticleNumber**: Extract the article number for each item, often found next to the item description.\n"
-        "    - **HsCode**: Extract the HS code or tariff number for the item, if available. This is typically found in the item description or details section.\n"
-        "    - **Description**: Extract the description of the item as listed on the invoice.\n"
-        "    - **CountryOfOrigin**: Extract the country of origin for each item, if specified.\n"
-        "    - **Quantity**: Extract the quantity of each item, listed in numerical format.\n"
-        "    - **GrossWeight**: Extract the GrossWeight of each item, listed in numerical format.\n"
-        "    - **Unit**: Extract the Unit of each item, listed in numerical format.\n"
-        "    - **NetAmount**: Extract the net amount for each item, formatted to include two decimal places.\n"
-        "    - **PricePerPiece**: Extract the price per piece of each item, formatted to include two decimal places.\n"
-        "    - **NetWeight**: Extract the net weight of each item if available.\n"
-        "18. **ConsigneeCity**: Extract the city of the consignee.\n"
-        "19. **ConsigneeCountry**: Extract the country of the consignee (if available).\n"
-        "20. **ConsignorName**: Extract the consignor's name.\n"
-        "21. **ConsignorZipcode**: Extract the consignor's postal code.\n"
-        "22. **ConsignorCity**: Extract the consignor's city.\n"
-        "23. **ConsignorCountry**: Extract the consignor's country.\n"
-        "24. **SellerRef**: Extract the seller reference number.\n"
-        "25. **OrderMark**: Extract the order mark.\n"
-        "26. **SupplierOrderNo**: Extract the supplier's order number.\n"
-        "27. **PickupDate**: Extract the date of pickup (if available).\n"
-        "28. **DeliveryDate**: Extract the delivery date (if available).\n"
-        "29. **HsCode2**: Extract the secondary HS code (if available).\n"
-        "30. **ProcedureCode2**: Extract the procedure code (if available).\n"
-        "31. **SummaryInfo**: Extract the summary information from the order.\n"
-        "32. **AdditionalInfo**: Extract additional information from the order.\n"
-        "33. **Measurement**: Extract the measurement for the order.\n"
-        "34. **MeasurementUnit**: Extract the unit of measurement for the order.\n"
-        "35. **InvoicedFreight**: Extract the invoiced freight amount.\n"
-        "36. **ExportCustomsId**: Extract the export customs ID (if available).\n"
-        "37. **TransactionType**: Extract the transaction type for the order.\n"
-        "38. **TransportMeansId**: Extract the transport means ID.\n"
-        "39. **TransportMeansNationality**: Extract the nationality of the transport means.\n"
-        "40. **CustomsCreditOfficeNumber**: Extract the customs credit office number.\n"
-        "41. **DeclarationDate**: Extract the declaration date.\n"
-
-        "Ensure that the extracted values are accurate and follow the expected format. If a field is not found in the invoice, include it in the JSON output with an empty string or null value."
+        "Task: Use the image and OCR text to extract specific information and output as a JSON object with these fields:\n\n"
+        "1. **OrderNumber**: Unique identifier for the order, usually prominent near order details.\n"
+        "2. **InvoiceNumber**: Unique number assigned to the invoice, labeled like 'Invoice No.'.\n"
+        "3. **BuyerName**: Full name of the buyer, typically found in 'Bill To' or 'Buyer' section.\n"
+        "4. **BuyerAddress1**: First line of the buyer’s address, often the street or P.O. Box.\n"
+        "5. **BuyerZipCode**: Postal code of the buyer's address.\n"
+        "6. **BuyerCity**: City of the buyer's address.\n"
+        "7. **BuyerCountry**: Country of the buyer’s address.\n"
+        "8. **ReceiverName**: Full name of the receiver, typically in 'Ship To' or 'Receiver' section.\n"
+        "9. **ReceiverAddress1**: First line of the receiver’s address.\n"
+        "10. **ReceiverZipCode**: Postal code of the receiver's address.\n"
+        "11. **ReceiverCity**: City of the receiver's address.\n"
+        "12. **ReceiverCountry**: Country of the receiver’s address.\n"
+        "13. **SellerName**: Seller or company name issuing the invoice, usually at the top.\n"
+        "14. **OrderDate**: Order date in 'YYYY-MM-DD' format, near invoice/order details.\n"
+        "15. **Currency**: Currency used, such as '$', 'EUR', or 'NOK'.\n"
+        "16. **TermsOfDelCode**: Delivery terms code, typically in shipping or terms section.\n"
+        "17. **OrderItems**: List of items with fields:\n"
+        "   - **ArticleNumber**: Item's article number.\n"
+        "   - **HsCode**: HS code or tariff number.\n"
+        "   - **Description**: Item description.\n"
+        "   - **CountryOfOrigin**: Item's country of origin.\n"
+        "   - **Quantity**: Numerical quantity of the item.\n"
+        "   - **GrossWeight**: Gross weight in numerical format.\n"
+        "   - **Unit**: Unit of the item.\n"
+        "   - **NetAmount**: Net amount, formatted to two decimal places.\n"
+        "   - **PricePerPiece**: Price per piece, formatted to two decimal places.\n"
+        "   - **NetWeight**: Net weight of the item.\n"
+        "18. **ConsigneeCity**: City of the consignee.\n"
+        "19. **ConsigneeCountry**: Country of the consignee.\n"
+        "20. **ConsignorName**: Consignor's name.\n"
+        "21. **ConsignorZipcode**: Consignor's postal code.\n"
+        "22. **ConsignorCity**: Consignor's city.\n"
+        "23. **ConsignorCountry**: Consignor's country.\n"
+        "24. **SellerRef**: Seller reference number.\n"
+        "25. **OrderMark**: Order mark.\n"
+        "26. **SupplierOrderNo**: Supplier's order number.\n"
+        "27. **PickupDate**: Date of pickup.\n"
+        "28. **DeliveryDate**: Date of delivery.\n"
+        "29. **HsCode2**: Secondary HS code.\n"
+        "30. **ProcedureCode2**: Secondary procedure code.\n"
+        "31. **SummaryInfo**: Summary of the order.\n"
+        "32. **AdditionalInfo**: Additional information about the order.\n"
+        "33. **Measurement**: Measurement of the order.\n"
+        "34. **MeasurementUnit**: Unit of measurement.\n"
+        "35. **InvoicedFreight**: Invoiced freight amount.\n"
+        "36. **ExportCustomsId**: Export customs ID.\n"
+        "37. **TransactionType**: Type of transaction for the order.\n"
+        "38. **TransportMeansId**: ID of the transport means.\n"
+        "39. **TransportMeansNationality**: Nationality of the transport means.\n"
+        "40. **CustomsCreditOfficeNumber**: Customs credit office number.\n"
+        "41. **DeclarationDate**: Declaration date.\n\n"
+        "Ensure accuracy, follow the expected format, and return fields with empty strings or null if not available."
     )
 
-    # Create the prompt in the desired format
     prompt = [{"role": "user", "content": [image, question]}]
 
     return prompt
