@@ -92,6 +92,7 @@ def generate_detailed_prompt(image, ocr_data):
         "40. **CustomsCreditOfficeNumber**: Customs credit office number.\n"
         "41. **DeclarationDate**: Declaration date.\n\n"
         "Ensure accuracy, follow the expected format, and return fields with empty strings or null if not available."
+        "Ensure output is always pure json. Don't add any comments"
     )
 
     prompt = [{"role": "user", "content": [image, question]}]
