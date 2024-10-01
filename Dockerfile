@@ -23,7 +23,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Clone the model repository using Git LFS and pull the large files
-RUN git clone https://huggingface.co/Zorro123444/invoice_extracter_xylem_test ./model \
+RUN git clone https://huggingface.co/Zorro123444/invoice_extracter ./model \
   && cd ./model \
   && git lfs pull
 
