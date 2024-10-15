@@ -2,7 +2,7 @@ import os
 import io
 import base64
 import torch
-import fitz  # PyMuPDF
+import fitz  # PyMuPDF for handling PDFs
 import runpod
 from PIL import Image
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -14,17 +14,17 @@ MODEL_DPI = 300
 # Load model path from environment variables or default
 MODEL_DIR = os.getenv("MODEL_DIR", "./model")
 
-# Load the tokenizer and model with GPU support and optimized for BF16 precision
+# Load the tokenizer and model with GPU support and FP16 precision
 tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_DIR,
     trust_remote_code=True,
-    torch_dtype=torch.float16,
-    device_map="cuda",
+    torch_dtype=torch.float16,  # Use FP16 precision
+    device_map="cuda",  # Use GPU
     cache_dir="./cache_dir"
 )
 
-print("Model loaded with BF16 precision on GPU.")
+print("Model loaded with FP16 precision on GPU.")
 
 def pdf_page_to_image(pdf_bytes, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
     """
@@ -67,8 +67,16 @@ def resize_image(image, target_size):
 
 
 def generate_detailed_prompt(image, ocr_data):
+    """
+    Generates a detailed task description to extract structured data from the image and OCR text.
 
-    # Create a detailed description of the task
+    Args:
+        image (PIL.Image.Image): Image of the invoice or PDF.
+        ocr_data (str): OCR extracted text from the image.
+
+    Returns:
+        list: A formatted prompt for the language model.
+    """
     question = (
         "You are provided with an invoice in PDF format as an image, along with the extracted OCR text.\n\n"
         "OCR Data:\n"
@@ -99,7 +107,7 @@ def generate_detailed_prompt(image, ocr_data):
         "18. **OrderItems** (list): For each item in the order, extract the following fields:\n"
         "    - **ArticleNumber**: Extract the article number of the item.\n"
         "    - **Description**: Extract the description of the item.\n"
-        "    - **HsCode**: Extract the H.S.CODE as a string for the item. (eg. H.S.CODE:84109910.)\n"
+        "    - **HsCode**: Extract the H.S.CODE as a string for the item. (e.g., H.S.CODE:84109910.)\n"
         "    - **CountryOfOrigin**: The country where the item was manufactured.\n"
         "    - **Quantity**: The number of units ordered.\n"
         "    - **NetWeight**: The net weight of the item.\n"
@@ -110,46 +118,40 @@ def generate_detailed_prompt(image, ocr_data):
         "19. **NetWeight**: Total net weight of the order.\n"
         "20. **GrossWeight**: Total gross weight of the order.\n"
         "21. **NumberOfUnits**: Total number of units in the order.\n"
-        "22. **NumberOfPallets**: Total number of pallets in the order.\n"
+        "22. **NumberOfPallets**: Total number of pallets in the order.\n\n"
         
-        "### Important Notes:\n"
         "Ensure all extracted values match the exact values in the original PDF without any changes. "
-        "Return the result as a valid JSON object. If any field is missing set it with an empty string. "
-        "Avoid adding any comments or additional information beyond the JSON structure."
+        "Return the result as a valid JSON object. If any field is missing, set it with an empty string."
     )
 
     # Create the prompt in the desired format
     prompt = [{"role": "user", "content": [image, question]}]
-
     return prompt
 
 
-def generate_prompt(image, ocr_data):
+def replace_none_with_empty_string(data):
     """
-    Generates a detailed prompt to extract structured data from the image and OCR text.
+    Recursively replaces all None values in a nested JSON-like structure with empty strings.
     
     Args:
-        image (PIL.Image.Image): Image of the invoice or PDF.
-        ocr_data (str): OCR extracted text from the image.
+        data (dict, list): The input JSON-like data (can be a dictionary, list, or nested structures).
     
     Returns:
-        list: A formatted prompt for the language model.
+        dict, list: The modified data with None replaced by empty strings.
     """
-    question = (
-        "You are provided with an image and OCR extracted text of an invoice PDF page.\n\n"
-        "OCR data:\n"
-        f"{ocr_data}\n\n"
-        "Task: Use the image and OCR text to extract specific information and output as a JSON object with these fields:\n"
-        "1. **OrderNumber**, 2. **InvoiceNumber**, 3. **BuyerName**, 4. **BuyerAddress1**, 5. **BuyerZipCode**, etc.\n"
-        "Ensure accuracy, follow the expected format, and return fields with empty strings or null if not available."
-        "Ensure output is always pure JSON."
-    )
-    
-    return [{"role": "user", "content": [image, question]}]
+    if isinstance(data, dict):
+        return {key: replace_none_with_empty_string(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [replace_none_with_empty_string(item) for item in data]
+    elif data is None:
+        return ""
+    else:
+        return data
+
 
 def handler(event):
     """
-    Main handler for RunPod serverless function. Processes the input event to generate 
+    Main handler for the serverless function. Processes the input event to generate 
     a detailed prompt and model response.
     
     Args:
@@ -187,7 +189,7 @@ def handler(event):
                 max_new_tokens=8192
             )
 
-        return {"response": output}
+        return {"response": replace_none_with_empty_string(output)}
 
     except Exception as e:
         print(f"Error in handler: {e}")
