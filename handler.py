@@ -186,7 +186,7 @@ def handler(event):
                 max_new_tokens=8192
             )
 
-        return {"response": json.dump(output)}
+        return {"response": json.dumps(output)}
 
     except Exception as e:
         print(f"Error in handler: {e}")
