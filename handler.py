@@ -173,7 +173,7 @@ def handler(event):
 
         # Load the image or PDF and convert it to an image
         if image_data:
-            image = load_and_resize_image(image_data)
+            image = load_image(image_data)
         elif pdf_bytes:
             image = pdf_page_to_image(pdf_bytes)
         else:
