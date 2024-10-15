@@ -27,7 +27,7 @@ model = AutoModelForCausalLM.from_pretrained(
 
 print("Model loaded with FP16 precision on GPU.")
 
-def pdf_page_to_image(pdf_bytes, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
+def pdf_page_to_image(pdf_data, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
     """
     Converts a single-page PDF (from bytes) into a low-resolution image,
     resized to a target size.
@@ -40,6 +40,7 @@ def pdf_page_to_image(pdf_bytes, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE)
     Returns:
         PIL.Image.Image: The low-res image resized to the target size.
     """
+    pdf_bytes = base64.b64decode(pdf_data)
     pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
 
     if len(pdf_document) < 1:
@@ -173,14 +174,14 @@ def handler(event):
         # Extract data from the event
         event_data = event.get("input", {})
         image_data = event_data.get("image")
-        pdf_bytes = event_data.get("pdf_bytes")
+        pdf_data = event_data.get("pdf_data")
         ocr_data = event_data.get("ocr_data", "")
 
         # Load the image or PDF and convert it to an image
         if image_data:
             image = load_image(image_data)
-        elif pdf_bytes:
-            image = pdf_page_to_image(pdf_bytes)
+        elif pdf_data:
+            image = pdf_page_to_image(pdf_data)
         else:
             raise ValueError("No image or PDF bytes provided in the input.")
 
