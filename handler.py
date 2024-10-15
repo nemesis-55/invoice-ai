@@ -131,6 +131,33 @@ def generate_detailed_prompt(image, ocr_data):
     prompt = [{"role": "user", "content": [image, question]}]
     return prompt
 
+def load_and_resize_image(image_data, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
+    """
+    Loads an image from base64-encoded data, resizes it to the target size, and sets its DPI.
+
+    Args:
+        image_data (str): Base64-encoded image data.
+        target_size (tuple): Target size to resize the image (default is 1600x1600 pixels).
+        dpi (tuple): The target DPI for the image (default is 300x300 DPI).
+    
+    Returns:
+        PIL.Image.Image: The loaded, resized image with the specified DPI.
+    """
+    # Decode the base64-encoded image data
+    image_bytes = base64.b64decode(image_data)
+    
+    # Open the image from bytes and convert it to RGB mode
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    
+    # Resize the image to the target size (1600x1600 by default)
+    resized_image = image.resize(target_size, Image.Resampling.LANCZOS)
+    
+    # Set the DPI metadata for the image
+    resized_image.info['dpi'] = dpi
+    
+    return resized_image
+
+
 
 def handler(event):
     """
@@ -152,8 +179,7 @@ def handler(event):
 
         # Load the image or PDF and convert it to an image
         if image_data:
-            image_bytes = base64.b64decode(image_data)
-            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            image = load_and_resize_image(image_data)
         elif pdf_bytes:
             image = pdf_page_to_image(pdf_bytes)
         else:
