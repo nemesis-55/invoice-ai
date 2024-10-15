@@ -78,75 +78,58 @@ def generate_detailed_prompt(image, ocr_data):
         list: A formatted prompt for the language model.
     """
     question = (
-        "You are provided with an invoice in PDF format as an image, along with the extracted OCR text.\n\n"
-        "OCR Data:\n"
-        f"{ocr_data}\n\n"
-        "Your task is to extract specific fields from the invoice and return them in a valid JSON format. "
-        "Make sure that the extracted values match the original values from the invoice exactly, with no formatting changes. "
-        "If a field is missing, return an empty string.\n\n"
-        
-        "### Field Descriptions:\n"
-        "1. **OrderNumber**: The order number as it appears on the invoice.\n"
-        "2. **InvoiceNumber**: The invoice number from the document.\n"
-        "3. **BuyerName**: The full name of the buyer as written.\n"
-        "4. **BuyerAddress1**: The first line of the buyer’s address, unchanged.\n"
-        "5. **BuyerZipCode**: The postal code of the buyer.\n"
-        "6. **BuyerCity**: The city where the buyer is located.\n"
-        "7. **BuyerCountry**: The country of the buyer.\n"
-        "8. **BuyerOrgNumber**: Organization number of the buyer, if available.\n"
-        "9. **ReceiverName**: The full name of the receiver exactly as it appears.\n"
-        "10. **ReceiverAddress1**: The first line of the receiver’s address without changes.\n"
-        "11. **ReceiverZipCode**: The postal code of the receiver.\n"
-        "12. **ReceiverCity**: The city where the receiver is located.\n"
-        "13. **ReceiverCountry**: The country where the receiver resides.\n"
-        "14. **SellerName**: The name of the seller or company issuing the invoice.\n"
-        "15. **OrderDate**: The exact date when the order was placed.\n"
-        "16. **Currency**: The currency code or symbol used for the transaction (e.g., $, EUR).\n"
-        "17. **TermsOfDelCode**: Code representing the terms of delivery (e.g., DDP).\n"
-        
-        "18. **OrderItems** (list): For each item in the order, extract the following fields:\n"
-        "    - **ArticleNumber**: Extract the article number of the item.\n"
-        "    - **Description**: Extract the description of the item.\n"
-        "    - **HsCode**: Extract the H.S.CODE as a string for the item. (e.g., H.S.CODE:84109910.)\n"
-        "    - **CountryOfOrigin**: The country where the item was manufactured.\n"
-        "    - **Quantity**: The number of units ordered.\n"
-        "    - **NetWeight**: The net weight of the item.\n"
-        "    - **NetAmount**: The total net amount for the item.\n"
-        "    - **PricePerPiece**: Extract the price per piece of the item.\n"
-        "    - **GrossWeight**: Extract the gross weight of the item, if applicable.\n"
-        
-        "19. **NetWeight**: Total net weight of the order.\n"
-        "20. **GrossWeight**: Total gross weight of the order.\n"
-        "21. **NumberOfUnits**: Total number of units in the order.\n"
-        "22. **NumberOfPallets**: Total number of pallets in the order.\n\n"
-        
-        "Ensure all extracted values match the exact values in the original PDF without any changes. "
-        "Return the result as a valid JSON object. If any field is missing, set it with an empty string."
-    )
+            "You are provided with an invoice in PDF format as an image, along with the extracted OCR text.\n\n"
+            "OCR Data:\n"
+            f"{ocr_data}\n\n"
+            "Your task is to extract specific fields from the invoice and return them in a valid JSON format. "
+            "Make sure that the extracted values match the original values from the invoice exactly, with no formatting changes. "
+            "If a field is missing, return it as `null` or an empty string.\n\n"
+            
+            "### Field Descriptions:\n"
+            "1. **OrderNumber**: The order number as it appears on the invoice (numeric, 6+ digits, e.g., 531947).\n"
+            "2. **InvoiceNumber**: The invoice number from the document (numeric, 6+ digits, e.g., 623946).\n"
+            "3. **BuyerName**: The full name of the buyer as written (e.g., XYLEM WATER SOLUTIONS AS).\n"
+            "4. **BuyerAddress1**: The first line of the buyer’s address, unchanged (e.g., FETVEIEN 23).\n"
+            "5. **BuyerZipCode**: The postal code of the buyer (e.g., NO-2007).\n"
+            "6. **BuyerCity**: The city where the buyer is located (e.g., KJELLER).\n"
+            "7. **BuyerCountry**: The country of the buyer (e.g., NORWAY).\n"
+            "8. **BuyerOrgNumber**: Organization number of the buyer, if available (numeric, 9 digits).\n"
+            "9. **ReceiverName**: The full name of the receiver exactly as it appears (e.g., Rørleggermester Kjell Horn AS).\n"
+            "10. **ReceiverAddress1**: The first line of the receiver’s address without changes (e.g., Elvegårdsveien 5).\n"
+            "11. **ReceiverZipCode**: The postal code of the receiver (e.g., 8370).\n"
+            "12. **ReceiverCity**: The city where the receiver is located (e.g., Leknes).\n"
+            "13. **ReceiverCountry**: The country where the receiver resides (e.g., NORWAY).\n"
+            "14. **SellerName**: The name of the seller or company issuing the invoice (e.g., xylem).\n"
+            "15. **OrderDate**: The exact date when the order was placed (e.g., 2023-12-05).\n"
+            "16. **Currency**: The currency code or symbol used for the transaction (e.g., NOK).\n"
+            "17. **TermsOfDelCode**: Code representing the terms of delivery (e.g., DDP).\n"
+            
+            "18. **OrderItems** (list): For each item in the order, extract the following fields:\n"
+            "    - **ArticleNumber**: Extract the article number of the item (e.g., 6697700).\n"
+            "    - **Description**: Extract the description of the item (e.g., GEJDFÄSTE ENHET).\n"
+            "    - **HsCode**: Extract the HS code for the item (8-digit tariff number, e.g., 73269098).\n"
+            "    - **CountryOfOrigin**: The country where the item was manufactured (e.g., SE).\n"
+            "    - **Quantity**: The number of units ordered (numeric, e.g., 2).\n"
+            "    - **NetWeight**: The net weight of the item (numeric, e.g., 0.466).\n"
+            "    - **NetAmount**: The total net amount for the item (numeric, e.g., 144.30).\n"
+            "    - **PricePerPiece**: Extract the price per piece of the item (numeric, e.g., 72.15).\n"
+            "    - **GrossWeight**: Extract the gross weight of the item, if applicable.\n"
+            
+            "19. **NetWeight**: Total net weight of the order (if available).\n"
+            "20. **GrossWeight**: Total gross weight of the order (if applicable).\n"
+            "21. **NumberOfUnits**: Total number of units in the order (numeric).\n"
+            "22. **NumberOfPallets**: Total number of pallets in the order (if applicable).\n"
+            
+            "### Important Notes:\n"
+            "Ensure all extracted values match the exact values in the original PDF without any changes. "
+            "Return the result as a valid JSON object. If any field is missing, fill it with null or an empty string. "
+            "Avoid adding any comments or additional information beyond the JSON structure."
+        )
+
 
     # Create the prompt in the desired format
     prompt = [{"role": "user", "content": [image, question]}]
     return prompt
-
-
-def replace_none_with_empty_string(data):
-    """
-    Recursively replaces all None values in a nested JSON-like structure with empty strings.
-    
-    Args:
-        data (dict, list): The input JSON-like data (can be a dictionary, list, or nested structures).
-    
-    Returns:
-        dict, list: The modified data with None replaced by empty strings.
-    """
-    if isinstance(data, dict):
-        return {key: replace_none_with_empty_string(value) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [replace_none_with_empty_string(item) for item in data]
-    elif data is None:
-        return ""
-    else:
-        return data
 
 
 def handler(event):
@@ -189,7 +172,7 @@ def handler(event):
                 max_new_tokens=8192
             )
 
-        return {"response": replace_none_with_empty_string(output)}
+        return {"response": output}
 
     except Exception as e:
         print(f"Error in handler: {e}")
