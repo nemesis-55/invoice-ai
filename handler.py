@@ -5,6 +5,7 @@ import torch
 import fitz  # PyMuPDF for handling PDFs
 import runpod
 from PIL import Image
+import json
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Constants
@@ -116,6 +117,7 @@ def generate_detailed_prompt(image, ocr_data):
         "Ensure all extracted values match the exact values in it. "
         "Field value is always string with default value as empty string."
         "output json must exactly match above mentioned structure."
+        "output of the above fields must not be None, NaN etc it should be always empty string eg. ("") "
     )
 
     # Create the prompt in the desired format
@@ -184,7 +186,7 @@ def handler(event):
                 max_new_tokens=8192
             )
 
-        return {"response": output}
+        return {"response": json.dump(output)}
 
     except Exception as e:
         print(f"Error in handler: {e}")
