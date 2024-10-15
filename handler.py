@@ -75,7 +75,7 @@ def generate_detailed_prompt(image, ocr_data):
         f"{ocr_data}\n\n"
         "Your task is to extract specific fields from the invoice and return them in a valid JSON format. "
         "Make sure that the extracted values match the original values from the invoice exactly, with no formatting changes. "
-        "If a field is missing, return it as `null` or an empty string.\n\n"
+        "If a field is missing, return an empty string.\n\n"
         
         "### Field Descriptions:\n"
         "1. **OrderNumber**: The order number as it appears on the invoice.\n"
@@ -114,7 +114,7 @@ def generate_detailed_prompt(image, ocr_data):
         
         "### Important Notes:\n"
         "Ensure all extracted values match the exact values in the original PDF without any changes. "
-        "Return the result as a valid JSON object. If any field is missing, fill it with null or an empty string. "
+        "Return the result as a valid JSON object. If any field is missing set it with an empty string. "
         "Avoid adding any comments or additional information beyond the JSON structure."
     )
 
