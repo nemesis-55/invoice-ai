@@ -66,17 +66,14 @@ def resize_image(image, target_size):
     """
     return image.resize(target_size, Image.Resampling.LANCZOS)
 
-
-
 def generate_detailed_prompt(image, ocr_data):
-
     # Create a detailed description of the task
     question = (
         "You are provided with an invoice in PDF format as an image, along with the extracted OCR text.\n\n"
         "OCR Data:\n"
         f"{ocr_data}\n\n"
         "Your task is to extract specific fields from the invoice and return them in a valid mentioned JSON format. "
-        "Make sure that the extracted values is not modified, use ocr_data to pick correct data. Default value of the below field is empty string "" \n\n"
+        "Make sure that the extracted values are not modified, use ocr_data to pick correct data. Default value of the below field is empty string \"\" \n\n"
         
         "### Field Descriptions:\n"
         "1. **OrderNumber**: The order number as it appears on the invoice (numeric, 6+ digits, e.g., 531947).\n"
@@ -117,7 +114,7 @@ def generate_detailed_prompt(image, ocr_data):
         "Ensure all extracted values match the exact values in it. "
         "Field value is always string with default value as empty string."
         "output json must exactly match above mentioned structure."
-        "output of the above fields must not be None, NaN etc it should be always empty string eg. ("") "
+        "output of the above fields must not be None, NaN etc it should be always empty string eg. (\"\") "
     )
 
     # Create the prompt in the desired format
@@ -131,8 +128,6 @@ def load_image(image_data):
 
     Args:
         image_data (str): Base64-encoded image data.
-        target_size (tuple): Target size to resize the image (default is 1600x1600 pixels).
-        dpi (tuple): The target DPI for the image (default is 300x300 DPI).
     
     Returns:
         PIL.Image.Image: The loaded, resized image with the specified DPI.
@@ -145,7 +140,23 @@ def load_image(image_data):
     
     return image
 
-
+def replace_none_with_empty_string(data):
+    """
+    Recursively replaces None values in the input data structure with empty strings.
+    
+    Args:
+        data (any): The input data (dict, list, str, etc.).
+    
+    Returns:
+        any: The updated data structure with None values replaced.
+    """
+    if isinstance(data, dict):
+        return {k: replace_none_with_empty_string(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [replace_none_with_empty_string(item) for item in data]
+    elif data is None:
+        return ""
+    return data
 
 def handler(event):
     """
@@ -186,7 +197,7 @@ def handler(event):
                 max_new_tokens=8192
             )
 
-        return {"response": json.dumps(output)}
+        return {"response": replace_none_with_empty_string(output)}
 
     except Exception as e:
         print(f"Error in handler: {e}")
