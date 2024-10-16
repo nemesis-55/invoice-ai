@@ -10,15 +10,15 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Constants
 DEFAULT_TARGET_SIZE = (1600, 1600)
-MODEL_DPI = 100
+MODEL_DPI = 300
 
 # Load model path from environment variables or default
-MODEL_DIR = os.getenv("MODEL_DIR", "./model")
+MODEL = os.getenv("MODEL", "Zorro123444/invoice_extracter")
 
 # Load the tokenizer and model with GPU support and FP16 precision
-tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_DIR,
+    MODEL,
     trust_remote_code=True,
     torch_dtype=torch.float16,  # Use FP16 precision
     device_map="cuda",  # Use GPU

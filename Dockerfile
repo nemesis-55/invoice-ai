@@ -22,16 +22,11 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Clone the model repository using Git LFS and pull the large files
-RUN git clone https://huggingface.co/Zorro123444/invoice_extracter ./model \
-  && cd ./model \
-  && git lfs pull
-
 # Copy the handler script
 COPY handler.py ./
 
 # Set model directory as an environment variable (optional)
-ENV MODEL_DIR=./model
+ENV MODEL="Zorro123444/invoice_extracter"
 
 # Call your file when the container starts
 CMD ["python", "-u", "./handler.py"]
