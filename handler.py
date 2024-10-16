@@ -51,8 +51,16 @@ def pdf_page_to_image(pdf_data, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
     pix = page.get_pixmap(dpi=dpi)
     image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
+    # Print original image size
+    print(f"Original image size: {image.size}")
+
     # Resize image to target size
-    return resize_image(image, target_size)
+    resized_image = resize_image(image, target_size)
+
+    # Print new image size
+    print(f"Resized image to: {resized_image.size}")
+
+    return resized_image
 
 def resize_image(image, target_size):
     """
@@ -139,7 +147,16 @@ def load_image(image_data):
     # Open the image from bytes and convert it to RGB mode
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     
-    return image
+    # Print original image size
+    print(f"Original image size: {image.size}")
+    
+    # Resize the image
+    resized_image = resize_image(image, DEFAULT_TARGET_SIZE)
+
+    # Print resized image size
+    print(f"Resized image to: {resized_image.size}")
+    
+    return resized_image
 
 def replace_none_with_empty_string(data):
     """
@@ -163,59 +180,44 @@ def handler(event):
     """
     Main handler for the serverless function. Processes the input event to generate 
     a detailed prompt and model response.
-    
+
     Args:
-        event (dict): Input event data.
+        event (dict): The input event data.
     
     Returns:
-        dict: The response containing the model's output or an error message.
+        dict: The output response data.
     """
-    try:
-        # Extract data from the event
-        event_data = event.get("input", {})
-        image_data = event_data.get("image")
-        pdf_data = event_data.get("pdf_data")
-        ocr_data = event_data.get("ocr_data", "")
+    print(f"Received event: {json.dumps(event, indent=2)}")
 
-        # Load the image or PDF and convert it to an image
-        if image_data:
-            image = load_image(image_data)
-        elif pdf_data:
-            image = pdf_page_to_image(pdf_data)
-        else:
-            raise ValueError("No image or PDF bytes provided in the input.")
+    # Extract data from the event
+    image_data = event.get('image', None)
+    ocr_data = event.get('ocr_data', "")
 
-        # Generate the prompt using the image and OCR data
-        prompt = generate_detailed_prompt(image, ocr_data)
-
-        # Generate a response from the model
-        print("Generating response...")
-        with torch.no_grad():
-            output = model.chat(
-                image=None,
-                msgs=prompt,
-                tokenizer=tokenizer,
-                max_new_tokens=8192
-            )
-
-        return {"response": replace_none_with_empty_string(output)}
-
-    except Exception as e:
-        print(f"Error in handler: {e}")
-        return {"error": str(e)}
-
-def health_check(event):
-    """
-    Health check endpoint for the serverless function.
+    if image_data is None:
+        return {"error": "No image provided in the request."}
     
-    Args:
-        event (dict): Event data.
-    
-    Returns:
-        dict: Health check status.
-    """
-    print("Health check hit.")
-    return {"status": "ok"}
+    # Process the image
+    image = load_image(image_data)
 
-# Start the RunPod serverless function
+    # Generate the detailed prompt using OCR data
+    prompt = generate_detailed_prompt(image, ocr_data)
+
+    # Tokenize the prompt
+    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+
+    # Generate model output
+    outputs = model.generate(**inputs, max_new_tokens=500, temperature=0.7)
+
+    # Decode the generated tokens
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # Replace None values with empty strings in the response
+    cleaned_response = replace_none_with_empty_string(response)
+
+    print("Response generated successfully.")
+
+    return cleaned_response
+
+
+# Start RunPod worker loop
 runpod.serverless.start({"handler": handler})
