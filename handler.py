@@ -43,6 +43,8 @@ def pdf_page_to_image(pdf_data, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
     pdf_bytes = base64.b64decode(pdf_data)
     pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
 
+    print(f"PDF Document opened. Number of pages: {len(pdf_document)}")
+
     if len(pdf_document) < 1:
         raise ValueError("The input PDF does not contain any pages.")
 
@@ -51,14 +53,11 @@ def pdf_page_to_image(pdf_data, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
     pix = page.get_pixmap(dpi=dpi)
     image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
-    # Print original image size
-    print(f"Original image size: {image.size}")
+    print(f"Page rendered: Width={pix.width}, Height={pix.height}, DPI={dpi}")
 
     # Resize image to target size
     resized_image = resize_image(image, target_size)
-
-    # Print new image size
-    print(f"Resized image to: {resized_image.size}")
+    print(f"Image resized to target size: {target_size} -> New size: {resized_image.size}")
 
     return resized_image
 
@@ -73,7 +72,8 @@ def resize_image(image, target_size):
     Returns:
         PIL.Image.Image: Resized image.
     """
-    return image.resize(target_size, Image.Resampling.LANCZOS)
+    resized_image = image.resize(target_size, Image.Resampling.LANCZOS)
+    return resized_image
 
 def generate_detailed_prompt(image, ocr_data):
     # Create a detailed description of the task
@@ -129,6 +129,8 @@ def generate_detailed_prompt(image, ocr_data):
     # Create the prompt in the desired format
     prompt = [{"role": "user", "content": [image, question]}]
 
+    print(f"Generated prompt: {prompt}")
+
     return prompt
 
 def load_image(image_data):
@@ -146,17 +148,9 @@ def load_image(image_data):
     
     # Open the image from bytes and convert it to RGB mode
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    
-    # Print original image size
-    print(f"Original image size: {image.size}")
-    
-    # Resize the image
-    resized_image = resize_image(image, DEFAULT_TARGET_SIZE)
+    print(f"Loaded image with size: {image.size}")
 
-    # Print resized image size
-    print(f"Resized image to: {resized_image.size}")
-    
-    return resized_image
+    return image
 
 def replace_none_with_empty_string(data):
     """
@@ -180,44 +174,59 @@ def handler(event):
     """
     Main handler for the serverless function. Processes the input event to generate 
     a detailed prompt and model response.
-
+    
     Args:
-        event (dict): The input event data.
+        event (dict): Input event data.
     
     Returns:
-        dict: The output response data.
+        dict: The response containing the model's output or an error message.
     """
-    print(f"Received event: {json.dumps(event, indent=2)}")
+    try:
+        # Extract data from the event
+        event_data = event.get("input", {})
+        image_data = event_data.get("image")
+        pdf_data = event_data.get("pdf_data")
+        ocr_data = event_data.get("ocr_data", "")
 
-    # Extract data from the event
-    image_data = event.get('image', None)
-    ocr_data = event.get('ocr_data', "")
+        # Load the image or PDF and convert it to an image
+        if image_data:
+            image = load_image(image_data)
+        elif pdf_data:
+            image = pdf_page_to_image(pdf_data)
+        else:
+            raise ValueError("No image or PDF bytes provided in the input.")
 
-    if image_data is None:
-        return {"error": "No image provided in the request."}
+        # Generate the prompt using the image and OCR data
+        prompt = generate_detailed_prompt(image, ocr_data)
+
+        # Generate a response from the model
+        print("Generating response...")
+        with torch.no_grad():
+            output = model.chat(
+                image=None,
+                msgs=prompt,
+                tokenizer=tokenizer,
+                max_new_tokens=8192
+            )
+
+        return {"response": replace_none_with_empty_string(output)}
+
+    except Exception as e:
+        print(f"Error in handler: {e}")
+        return {"error": str(e)}
+
+def health_check(event):
+    """
+    Health check endpoint for the serverless function.
     
-    # Process the image
-    image = load_image(image_data)
+    Args:
+        event (dict): Event data.
+    
+    Returns:
+        dict: Health check status.
+    """
+    print("Health check hit.")
+    return {"status": "ok"}
 
-    # Generate the detailed prompt using OCR data
-    prompt = generate_detailed_prompt(image, ocr_data)
-
-    # Tokenize the prompt
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-
-    # Generate model output
-    outputs = model.generate(**inputs, max_new_tokens=500, temperature=0.7)
-
-    # Decode the generated tokens
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-    # Replace None values with empty strings in the response
-    cleaned_response = replace_none_with_empty_string(response)
-
-    print("Response generated successfully.")
-
-    return cleaned_response
-
-
-# Start RunPod worker loop
+# Start the RunPod serverless function
 runpod.serverless.start({"handler": handler})
