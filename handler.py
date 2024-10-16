@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Constants
 DEFAULT_TARGET_SIZE = (1600, 1600)
-MODEL_DPI = 300
+MODEL_DPI = 100
 
 # Load model path from environment variables or default
 MODEL = os.getenv("MODEL", "Zorro123444/invoice_extracter")
@@ -187,12 +187,14 @@ def handler(event):
         image_data = event_data.get("image")
         pdf_data = event_data.get("pdf_data")
         ocr_data = event_data.get("ocr_data", "")
+        dpi = event_data.get("dpi", MODEL_DPI)
+        target_size = event_data.get("target_size", DEFAULT_TARGET_SIZE)
 
         # Load the image or PDF and convert it to an image
         if image_data:
             image = load_image(image_data)
         elif pdf_data:
-            image = pdf_page_to_image(pdf_data)
+            image = pdf_page_to_image(pdf_data, dpi, target_size)
         else:
             raise ValueError("No image or PDF bytes provided in the input.")
 
