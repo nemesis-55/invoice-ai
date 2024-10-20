@@ -158,15 +158,38 @@ def generate_detailed_prompt(ocr_data):
     )
     return question
 
-def handle_inference(prompt):
+def handle_inference(image, prompt):
     """Handles model inference with a given prompt and returns the result."""
     print("Performing inference...")
-    input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+    # Prepare messages for the chat model
+    msgs = [{"role": "user", "content": prompt}]
+
     with torch.no_grad():
-        generated_ids = model.generate(input_ids, max_length=1500)
-    response = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
-    print(f"Inference result: {response}")
-    return response
+        outputs = model.chat(image=image, msgs=msgs, tokenizer=tokenizer, max_new_tokens=8192)
+    order_json = convert_to_order_structure(convert_string_to_json(outputs))
+    print(order_json)
+    print(f"Inference result: {order_json}")
+    return order_json
+
+
+def convert_string_to_json(input_string):
+    """Converts a string formatted like a dictionary to valid JSON."""
+    # Replace single quotes with double quotes
+    json_string = input_string.replace("'", '"')
+
+    # Optionally escape any backslashes (if there are any)
+    json_string = json_string.replace('\\', '\\\\')
+
+    # Handle any unescaped characters
+    json_string = re.sub(r'\\u(?![0-9a-fA-F]{4})', '\\\\u', json_string)  # Ensure Unicode escape sequences are valid
+    
+    # Attempt to load the JSON
+    try:
+        data = json.loads(json_string)
+        return data
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return None
 
 def run(request):
     """Main run function for RunPod."""
@@ -193,12 +216,10 @@ def run(request):
 
         compacted_ocr_data = compact_ocr_data(ocr_data)
         prompt = generate_detailed_prompt(compacted_ocr_data)
-        response = handle_inference(prompt)
-
-        json_data = convert_to_order_structure(json.loads(response))
+        response = handle_inference(image, prompt)
 
         return {
-            "invoice_data": json_data
+            "invoice_data": response
         }
     except Exception as e:
         print(f"Error during processing: {e}")
