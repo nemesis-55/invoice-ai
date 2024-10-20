@@ -17,7 +17,7 @@ CACHE_DIR_MODEL = "./cache_dir/model"
 CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 
 # Load model and tokenizer
-model_type = os.getenv("MODEL_DIR", "openbmb/MiniCPM-Llama3-V-2_5")
+model_type = "openbmb/MiniCPM-Llama3-V-2_5"
 path_to_adapter = os.getenv("ADAPTER_DIR","Zorro123444/xylem_invoice_extracter")
 
 print("Loading model...")
@@ -121,8 +121,7 @@ def convert_to_order_structure(input_json):
         return None
 
 def generate_detailed_prompt(ocr_data):
-    """Generates a detailed prompt for extracting invoice data from OCR."""
-    print("Generating detailed prompt...")
+    # Create a compressed description of the task
     question = (
         "You are given an invoice image and extracted OCR text.\n\n"
         f"OCR Data:\n{ocr_data}\n\n"
@@ -134,17 +133,18 @@ def generate_detailed_prompt(ocr_data):
         "5. **BuyerZipCode**: Postal code (pattern '[A-Z]{2}-\\d{4}', e.g., 'NO-2007').\n"
         "6. **BuyerCity**: City (max 50 chars, e.g., 'KJELLER').\n"
         "7. **BuyerCountry**: Country (e.g., 'NORWAY').\n"
-        "8. **ReceiverName**: Full name (e.g., 'XYLEM WATER SOLUTIONS NORGE AS').\n"
-        "9. **ReceiverAddress1**: Address line 1 (e.g., 'JANAFLATEN 37').\n"
-        "10. **ReceiverZipCode**: Postal code (e.g., '5179').\n"
-        "11. **ReceiverCity**: City (e.g., 'GODVIK').\n"
-        "12. **ReceiverCountry**: Country (e.g., 'NORWAY').\n"
-        "13. **SellerName**: Name of the seller (e.g., 'xylem').\n"
-        "14. **OrderDate**: Date (format 'YYYY-MM-DD', e.g., '2023-09-18').\n"
-        "15. **Currency**: Currency code (3 chars, e.g., 'NOK').\n"
-        "16. **TermsOfDelCode**: Delivery code (e.g., 'DDP').\n"
-        "17. **OrderItems** (list): For each item, extract:\n"
-        "    - **ArticleNumber**: Item number (e.g., '841180').\n"
+        "8. **BuyerOrgNumber**: 9-digit org number (e.g., '918088067').\n"
+        "9. **ReceiverName**: Full name (e.g., 'XYLEM WATER SOLUTIONS NORGE AS').\n"
+        "10. **ReceiverAddress1**: Address line 1 (e.g., 'JANAFLATEN 37').\n"
+        "11. **ReceiverZipCode**: Postal code (e.g., '5179').\n"
+        "12. **ReceiverCity**: City (e.g., 'GODVIK').\n"
+        "13. **ReceiverCountry**: Country (e.g., 'NORWAY').\n"
+        "14. **SellerName**: Name of the seller (e.g., 'xylem').\n"
+        "15. **OrderDate**: Date (format 'YYYY-MM-DD', e.g., '2023-09-18').\n"
+        "16. **Currency**: Currency code (3 chars, e.g., 'NOK').\n"
+        "17. **TermsOfDelCode**: Delivery code (e.g., 'DDP').\n"
+        "18. **OrderItems** (list): For each item, extract:\n"
+        "    - **ArticleNumber**: 8-digit numberic Item number (e.g., '841180').\n"
         "    - **Description**: Item description (e.g., 'KONDENSATOR 14 MFD 450V').\n"
         "    - **HsCode**: 8-digit HS code (e.g., '85322900').\n"
         "    - **CountryOfOrigin**: Country (e.g., 'BG').\n"
@@ -152,10 +152,14 @@ def generate_detailed_prompt(ocr_data):
         "    - **NetWeight**: Net weight (e.g., '0.070').\n"
         "    - **NetAmount**: Total amount (e.g., '160.28').\n"
         "    - **PricePerPiece**: Price per unit (e.g., '160.28').\n"
-        "18. **NetWeight**: Total net weight (e.g., '55.000').\n"
-        "19. **NumberOfUnits**: Total number of units (e.g., '1.000').\n\n"
-        "Make sure the output is in valid JSON format."
+        "    - **GrossWeight**: Gross weight (if available).\n"
+        "19. **NetWeight**: Total net weight (e.g., '55.000').\n"
+        "20. **GrossWeight**: Total gross weight (if applicable).\n"
+        "21. **NumberOfUnits**: Total units (e.g., '1').\n"
+        "22. **NumberOfPallets**: Pallets (if applicable).\n\n"
+        "Match all values to the invoice exactly. Missing fields should be returned as None. Return the result as valid JSON."
     )
+
     return question
 
 def handle_inference(image, prompt):
@@ -175,24 +179,18 @@ def handle_inference(image, prompt):
 def convert_string_to_json(data_str):
     # Step 1: Replace single quotes with double quotes for JSON compatibility
     json_str = data_str.replace("'", '"')
-    
-    # Step 2: Escape special characters like newline (\n) inside string values
-    json_str = re.sub(r'(?<!\\)\n', '\\n', json_str)
 
-    # Step 3: Remove invalid characters
-    json_str = re.sub(r'[^a-zA-Z0-9",\s,:{}[\].]', '', json_str)
+    # Step 2: Replace 'None' with 'null' for JSON compatibility
+    json_str = json_str.replace("None", "null")
 
-    # Step 4: Remove unnecessary double quotes
-    # This regex will keep double quotes that are part of valid JSON syntax.
-    json_str = re.sub(r'(?<!\w)"(?!\w)', '', json_str)  # Removes quotes not associated with alphanumeric characters
-
-    # Step 5: Use json.loads to convert the string to a JSON object (Python dictionary)
     try:
+        # Step 3: Use json.loads to convert the string to a JSON object (Python dictionary)
         json_data = json.loads(json_str)
         return json_data
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
+        print(f"Error decoding JSON: {e}\nJSON String: {json_str}")
         return None
+
 
 def run(request):
     """Main run function for RunPod."""

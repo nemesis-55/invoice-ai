@@ -27,16 +27,10 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     rm -rf ~/.cache/pip
 
 # Set model and adapter paths as environment variables (optional)
-ENV MODEL_DIR="/app/model"
 ENV ADAPTER_DIR="/app/adapter"
 
 # Create directories for models and adapters
-RUN mkdir -p $MODEL_DIR $ADAPTER_DIR
-
-# Clone the model repository (using Git LFS)
-RUN git clone https://huggingface.co/openbmb/MiniCPM-Llama3-V-2_5 $MODEL_DIR && \
-    cd $MODEL_DIR && git lfs pull && \
-    rm -rf /root/.cache/git-lfs
+RUN mkdir -p $ADAPTER_DIR
 
 # Clone the adapter repository (using Git LFS)
 RUN git clone https://huggingface.co/Zorro123444/xylem_invoice_extracter $ADAPTER_DIR && \
