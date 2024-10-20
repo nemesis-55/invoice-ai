@@ -4,6 +4,8 @@ FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV GIT_LFS_SKIP_SMUDGE=1  
+ENV CACHE_DIR_MODEL = "./cache_dir/model"
+ENV CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 
 # Install Python, Git, and required system dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,7 +32,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 ENV ADAPTER_DIR="/app/adapter"
 
 # Create directories for models and adapters
-RUN mkdir -p $ADAPTER_DIR
+RUN mkdir -p ${ADAPTER_DIR} ${CACHE_DIR_MODEL} ${CACHE_DIR_ADAPTOR}
 
 # Clone the adapter repository (using Git LFS)
 RUN git clone https://huggingface.co/Zorro123444/xylem_invoice_extracter $ADAPTER_DIR && \
