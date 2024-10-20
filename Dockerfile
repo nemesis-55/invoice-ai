@@ -33,11 +33,11 @@ ENV ADAPTER_DIR="/app/adapter"
 RUN mkdir -p $MODEL_DIR $ADAPTER_DIR
 
 # Clone the model repository (using Git LFS)
-RUN git clone https://huggingface.co/Zorro123444/openbmb/MiniCPM-Llama3-V-2_5 $MODEL_DIR && \
+RUN git clone https://huggingface.co/openbmb/MiniCPM-Llama3-V-2_5 $MODEL_DIR && \
     cd $MODEL_DIR && git lfs pull
 
 # Clone the adapter repository (using Git LFS)
-RUN git clone https://huggingface.co/Zorro123444/Zorro123444/xylem_invoice_extracter $ADAPTER_DIR && \
+RUN git clone https://huggingface.co/Zorro123444/xylem_invoice_extracter $ADAPTER_DIR && \
     cd $ADAPTER_DIR && git lfs pull
 
 # Copy the handler script to the container

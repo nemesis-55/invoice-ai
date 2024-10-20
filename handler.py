@@ -172,23 +172,23 @@ def handle_inference(image, prompt):
     return order_json
 
 
-def convert_string_to_json(input_string):
-    """Converts a string formatted like a dictionary to valid JSON."""
-    # Replace single quotes with double quotes
-    json_string = input_string.replace("'", '"')
-
-    # Optionally escape any backslashes (if there are any)
-    json_string = json_string.replace('\\', '\\\\')
-
-    # Handle any unescaped characters
-    json_string = re.sub(r'\\u(?![0-9a-fA-F]{4})', '\\\\u', json_string)  # Ensure Unicode escape sequences are valid
+def convert_string_to_json(data_str):
+    # Step 1: Replace single quotes with double quotes
+    json_str = data_str.replace("'", '"')
     
-    # Attempt to load the JSON
+    # Step 2: Escape special characters like newline (\n) and double quotes inside string values
+    json_str = re.sub(r'(?<!\\)\n', '\\n', json_str)
+
+    # Step 3: Remove any characters that are not valid in JSON
+    # Keeping letters, numbers, spaces, quotes, commas, colons, curly braces, and square brackets
+    json_str = re.sub(r'[^a-zA-Z0-9",\'\s,:{}[\].]', '', json_str)
+
+    # Step 4: Use json.loads to convert the string to a JSON object (Python dictionary)
     try:
-        data = json.loads(json_string)
-        return data
+        json_data = json.loads(json_str)
+        return json_data
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
+        print(f"Error decoding JSON: {e}: json_data: {json_str}")
         return None
 
 def run(request):
