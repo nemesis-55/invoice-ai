@@ -173,22 +173,25 @@ def handle_inference(image, prompt):
 
 
 def convert_string_to_json(data_str):
-    # Step 1: Replace single quotes with double quotes
+    # Step 1: Replace single quotes with double quotes for JSON compatibility
     json_str = data_str.replace("'", '"')
     
-    # Step 2: Escape special characters like newline (\n) and double quotes inside string values
+    # Step 2: Escape special characters like newline (\n) inside string values
     json_str = re.sub(r'(?<!\\)\n', '\\n', json_str)
 
-    # Step 3: Remove any characters that are not valid in JSON
-    # Keeping letters, numbers, spaces, quotes, commas, colons, curly braces, and square brackets
-    json_str = re.sub(r'[^a-zA-Z0-9",\'\s,:{}[\].]', '', json_str)
+    # Step 3: Remove invalid characters
+    json_str = re.sub(r'[^a-zA-Z0-9",\s,:{}[\].]', '', json_str)
 
-    # Step 4: Use json.loads to convert the string to a JSON object (Python dictionary)
+    # Step 4: Remove unnecessary double quotes
+    # This regex will keep double quotes that are part of valid JSON syntax.
+    json_str = re.sub(r'(?<!\w)"(?!\w)', '', json_str)  # Removes quotes not associated with alphanumeric characters
+
+    # Step 5: Use json.loads to convert the string to a JSON object (Python dictionary)
     try:
         json_data = json.loads(json_str)
         return json_data
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}: json_data: {json_str}")
+        print(f"Error decoding JSON: {e}")
         return None
 
 def run(request):

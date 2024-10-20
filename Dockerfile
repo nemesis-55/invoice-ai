@@ -7,13 +7,13 @@ ENV GIT_LFS_SKIP_SMUDGE=1
 
 # Install Python, Git, and required system dependencies
 RUN apt-get update && apt-get install -y \
-  python3.8 \
-  python3-pip \
-  git \
-  git-lfs \
-  wget \
-  curl \
-  && rm -rf /var/lib/apt/lists/*
+    python3.8 \
+    python3-pip \
+    git \
+    git-lfs \
+    wget \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Initialize Git LFS
 RUN git lfs install
@@ -23,7 +23,8 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 # Install Python dependencies from the requirements file
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    rm -rf ~/.cache/pip
 
 # Set model and adapter paths as environment variables (optional)
 ENV MODEL_DIR="/app/model"
@@ -34,11 +35,13 @@ RUN mkdir -p $MODEL_DIR $ADAPTER_DIR
 
 # Clone the model repository (using Git LFS)
 RUN git clone https://huggingface.co/openbmb/MiniCPM-Llama3-V-2_5 $MODEL_DIR && \
-    cd $MODEL_DIR && git lfs pull
+    cd $MODEL_DIR && git lfs pull && \
+    rm -rf /root/.cache/git-lfs
 
 # Clone the adapter repository (using Git LFS)
 RUN git clone https://huggingface.co/Zorro123444/xylem_invoice_extracter $ADAPTER_DIR && \
-    cd $ADAPTER_DIR && git lfs pull
+    cd $ADAPTER_DIR && git lfs pull && \
+    rm -rf /root/.cache/git-lfs
 
 # Copy the handler script to the container
 COPY handler.py ./
