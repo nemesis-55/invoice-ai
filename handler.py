@@ -1,234 +1,208 @@
-import os
 import io
+import os
 import base64
 import torch
 import fitz  # PyMuPDF for handling PDFs
-import runpod
 from PIL import Image
 import json
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModel
+import re
+from peft import PeftModel
+import runpod
 
 # Constants
-DEFAULT_TARGET_SIZE = (1600, 1600)
-MODEL_DPI = 100
+DEFAULT_TARGET_SIZE = (724, 724)
+MODEL_DPI = 600
+CACHE_DIR_MODEL = "./cache_dir/model"
+CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 
-# Load model path from environment variables or default
-MODEL = os.getenv("MODEL", "Zorro123444/invoice_extracter")
+# Load model and tokenizer
+model_type = os.getenv("MODEL_DIR", "openbmb/MiniCPM-Llama3-V-2_5")
+path_to_adapter = os.getenv("ADAPTER_DIR","Zorro123444/xylem_invoice_extracter")
 
-# Load the tokenizer and model with GPU support and FP16 precision
-tokenizer = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL,
+print("Loading model...")
+model = AutoModel.from_pretrained(model_type, trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16, 
+    cache_dir=CACHE_DIR_MODEL )
+model = PeftModel.from_pretrained(
+    model,
+    path_to_adapter,
+    device_map="cuda",
     trust_remote_code=True,
-    torch_dtype=torch.float16,  # Use FP16 precision
-    device_map="cuda",  # Use GPU
-    cache_dir="./cache_dir"
-)
+    torch_dtype=torch.bfloat16, 
+    cache_dir=CACHE_DIR_ADAPTOR
+).eval()
 
-print("Model loaded with FP16 precision on GPU.")
+tokenizer = AutoTokenizer.from_pretrained(path_to_adapter, trust_remote_code=True)
+print("Model and tokenizer loaded.")
 
-def pdf_page_to_image(pdf_data, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
-    """
-    Converts a single-page PDF (from bytes) into a low-resolution image,
-    resized to a target size.
-    
-    Args:
-        pdf_bytes (bytes): The input PDF file in byte format (single-page PDF).
-        dpi (int): DPI for rendering the PDF. Default is 300.
-        target_size (tuple): Target size for the image. Default is (1600, 1600).
-    
-    Returns:
-        PIL.Image.Image: The low-res image resized to the target size.
-    """
-    pdf_bytes = base64.b64decode(pdf_data)
-    pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+def compact_ocr_data(ocr_data):
+    """Compact the OCR extracted data by removing excessive spaces and line breaks."""
+    print("Compacting OCR data...")
+    cleaned_text = re.sub(r'\n+', '\n', ocr_data)
+    cleaned_text = re.sub(r'[ ]{2,}', ' ', cleaned_text).strip()
+    cleaned_text = re.sub(r'\n\s+', '\n', cleaned_text)
+    cleaned_text = re.sub(r'(?<!\n)\n(?!\n)', ' ', cleaned_text)
+    return cleaned_text
 
-    print(f"PDF Document opened. Number of pages: {len(pdf_document)}")
-
-    if len(pdf_document) < 1:
-        raise ValueError("The input PDF does not contain any pages.")
-
-    # Render the first page to an image
-    page = pdf_document.load_page(0)
-    pix = page.get_pixmap(dpi=dpi)
-    image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-
-    print(f"Page rendered: Width={pix.width}, Height={pix.height}, DPI={dpi}")
-
-    # Resize image to target size
-    resized_image = resize_image(image, target_size)
-    print(f"Image resized to target size: {target_size} -> New size: {resized_image.size}")
-
-    return resized_image
-
-def resize_image(image, target_size):
-    """
-    Resize an image to the given target size while maintaining aspect ratio.
-    
-    Args:
-        image (PIL.Image.Image): Input image.
-        target_size (tuple): Target size (width, height).
-    
-    Returns:
-        PIL.Image.Image: Resized image.
-    """
-    resized_image = image.resize(target_size, Image.Resampling.LANCZOS)
-    return resized_image
-
-def generate_detailed_prompt(image, ocr_data):
-    # Create a detailed description of the task
-    question = (
-        "You are provided with an invoice in PDF format as an image, along with the extracted OCR text.\n\n"
-        "OCR Data:\n"
-        f"{ocr_data}\n\n"
-        "Your task is to extract specific fields from the invoice and return them in a valid mentioned JSON format. "
-        "Make sure that the extracted values are not modified, use ocr_data to pick correct data. Default value of the below field is empty string \"\" \n\n"
-        
-        "### Field Descriptions:\n"
-        "1. **OrderNumber**: The order number as it appears on the invoice (numeric, 6+ digits, e.g., 531947).\n"
-        "2. **InvoiceNumber**: The invoice number from the document (numeric, 6+ digits, e.g., 623946).\n"
-        "3. **BuyerName**: The full name of the buyer as written (e.g., XYLEM WATER SOLUTIONS AS).\n"
-        "4. **BuyerAddress1**: The first line of the buyer’s address, unchanged (e.g., FETVEIEN 23).\n"
-        "5. **BuyerZipCode**: The postal code of the buyer (e.g., NO-2007).\n"
-        "6. **BuyerCity**: The city where the buyer is located (e.g., KJELLER).\n"
-        "7. **BuyerCountry**: The country of the buyer (e.g., NORWAY).\n"
-        "8. **BuyerOrgNumber**: Organization number of the buyer, if available (numeric, 9 digits).\n"
-        "9. **ReceiverName**: The full name of the receiver exactly as it appears (e.g., Rørleggermester Kjell Horn AS).\n"
-        "10. **ReceiverAddress1**: The first line of the receiver’s address without changes (e.g., Elvegårdsveien 5).\n"
-        "11. **ReceiverZipCode**: The postal code of the receiver (e.g., 8370).\n"
-        "12. **ReceiverCity**: The city where the receiver is located (e.g., Leknes).\n"
-        "13. **ReceiverCountry**: The country where the receiver resides (e.g., NORWAY).\n"
-        "14. **SellerName**: The name of the seller or company issuing the invoice (e.g., xylem).\n"
-        "15. **OrderDate**: The exact date when the order was placed (e.g., 2023-12-05).\n"
-        "16. **Currency**: The currency code or symbol used for the transaction (e.g., NOK).\n"
-        "17. **TermsOfDelCode**: Code representing the terms of delivery (e.g., DDP).\n"
-        
-        "18. **OrderItems** (list): For each item in the order, extract the following fields:\n"
-        "    - **ArticleNumber**: Extract the article number of the item (e.g., 6697700).\n"
-        "    - **Description**: Extract the description of the item (e.g., GEJDFÄSTE ENHET).\n"
-        "    - **HsCode**: Extract the HS code for the item (8-digit tariff number, e.g., 73269098).\n"
-        "    - **CountryOfOrigin**: The country where the item was manufactured (e.g., SE).\n"
-        "    - **Quantity**: The number of units ordered (numeric, e.g., 2).\n"
-        "    - **NetWeight**: The net weight of the item (numeric, e.g., 0.466).\n"
-        "    - **NetAmount**: The total net amount for the item (numeric, e.g., 144.30).\n"
-        "    - **PricePerPiece**: Extract the price per piece of the item (numeric, e.g., 72.15).\n"
-        "    - **GrossWeight**: Extract the gross weight of the item, if applicable.\n"
-        
-        "19. **NetWeight**: Total net weight of the order (if available).\n"
-        "20. **GrossWeight**: Total gross weight of the order (if applicable).\n"
-        "21. **NumberOfUnits**: Total number of units in the order (numeric).\n"
-        "22. **NumberOfPallets**: Total number of pallets in the order (if applicable).\n"
-        
-        "### Important Notes:\n"
-        "Ensure all extracted values match the exact values in it. "
-        "Field value is always string with default value as empty string."
-        "output json must exactly match above mentioned structure."
-        "output of the above fields must not be None, NaN etc it should be always empty string eg. (\"\") "
-    )
-
-    # Create the prompt in the desired format
-    prompt = [{"role": "user", "content": [image, question]}]
-
-    print(f"Generated prompt: {prompt}")
-
-    return prompt
+def pdf_page_to_image(pdf_page_bytes, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
+    """Converts base64-encoded PDF bytes into an image and resizes it."""
+    try:
+        print("Converting PDF page to image...")
+        pdf_document = fitz.open(stream=pdf_page_bytes, filetype="pdf")
+        if len(pdf_document) < 1:
+            raise ValueError("The PDF does not contain any pages.")
+        page = pdf_document.load_page(0)
+        pix = page.get_pixmap(dpi=dpi)
+        image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        resized_image = image.resize(target_size, Image.Resampling.LANCZOS)
+        return resized_image
+    except Exception as e:
+        print(f"Error rendering PDF page: {e}")
+        return None
 
 def load_image(image_data):
-    """
-    Loads an image from base64-encoded data, resizes it to the target size, and sets its DPI.
-
-    Args:
-        image_data (str): Base64-encoded image data.
-    
-    Returns:
-        PIL.Image.Image: The loaded, resized image with the specified DPI.
-    """
-    # Decode the base64-encoded image data
-    image_bytes = base64.b64decode(image_data)
-    
-    # Open the image from bytes and convert it to RGB mode
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    print(f"Loaded image with size: {image.size}")
-
-    return image
-
-def replace_none_with_empty_string(data):
-    """
-    Recursively replaces None values in the input data structure with empty strings.
-    
-    Args:
-        data (any): The input data (dict, list, str, etc.).
-    
-    Returns:
-        any: The updated data structure with None values replaced.
-    """
-    if isinstance(data, dict):
-        return {k: replace_none_with_empty_string(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [replace_none_with_empty_string(item) for item in data]
-    elif data is None:
-        return ""
-    return data
-
-def handler(event):
-    """
-    Main handler for the serverless function. Processes the input event to generate 
-    a detailed prompt and model response.
-    
-    Args:
-        event (dict): Input event data.
-    
-    Returns:
-        dict: The response containing the model's output or an error message.
-    """
+    """Loads a base64-encoded image, resizes it, and returns the image."""
     try:
-        # Extract data from the event
-        event_data = event.get("input", {})
-        image_data = event_data.get("image")
-        pdf_data = event_data.get("pdf_data")
-        ocr_data = event_data.get("ocr_data", "")
-        dpi = event_data.get("dpi", MODEL_DPI)
-        target_size = event_data.get("target_size", DEFAULT_TARGET_SIZE)
-
-        # Load the image or PDF and convert it to an image
-        if image_data:
-            image = load_image(image_data)
-        elif pdf_data:
-            image = pdf_page_to_image(pdf_data, dpi, target_size)
-        else:
-            raise ValueError("No image or PDF bytes provided in the input.")
-
-        # Generate the prompt using the image and OCR data
-        prompt = generate_detailed_prompt(image, ocr_data)
-
-        # Generate a response from the model
-        print("Generating response...")
-        with torch.no_grad():
-            output = model.chat(
-                image=None,
-                msgs=prompt,
-                tokenizer=tokenizer,
-                max_new_tokens=8192
-            )
-
-        return {"response": replace_none_with_empty_string(output)}
-
+        print("Loading image...")
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        print(f"Image loaded with size: {image.size}")
+        return image
     except Exception as e:
-        print(f"Error in handler: {e}")
-        return {"error": str(e)}
+        print(f"Error loading image: {e}")
+        return None
 
-def health_check(event):
-    """
-    Health check endpoint for the serverless function.
-    
-    Args:
-        event (dict): Event data.
-    
-    Returns:
-        dict: Health check status.
-    """
-    print("Health check hit.")
-    return {"status": "ok"}
+def replace_none_with_empty(value):
+    """Replaces None or 'null' values with an empty string."""
+    return value if value not in [None, "null"] else ""
 
-# Start the RunPod serverless function
-runpod.serverless.start({"handler": handler})
+def convert_to_order_structure(input_json):
+    """Converts the input JSON to a specified order structure."""
+    print("Converting JSON to order structure...")
+    try:
+        order_structure = {
+            "OrderNumber": replace_none_with_empty(input_json.get("OrderNumber", "")),
+            "InvoiceNumber": replace_none_with_empty(input_json.get("InvoiceNumber", "")),
+            "BuyerName": replace_none_with_empty(input_json.get("BuyerName", "")),
+            "BuyerAddress1": replace_none_with_empty(input_json.get("BuyerAddress1", "")),
+            "BuyerZipCode": replace_none_with_empty(input_json.get("BuyerZipCode", "")),
+            "BuyerCity": replace_none_with_empty(input_json.get("BuyerCity", "")),
+            "BuyerCountry": replace_none_with_empty(input_json.get("BuyerCountry", "")),
+            "ReceiverName": replace_none_with_empty(input_json.get("ReceiverName", "")),
+            "ReceiverAddress1": replace_none_with_empty(input_json.get("ReceiverAddress1", "")),
+            "ReceiverZipCode": replace_none_with_empty(input_json.get("ReceiverZipCode", "")),
+            "ReceiverCity": replace_none_with_empty(input_json.get("ReceiverCity", "")),
+            "ReceiverCountry": replace_none_with_empty(input_json.get("ReceiverCountry", "")),
+            "SellerName": replace_none_with_empty(input_json.get("SellerName", "")),
+            "NetAmount": replace_none_with_empty(input_json.get("NetAmount", "")),
+            "OrderDate": replace_none_with_empty(input_json.get("OrderDate", "")),
+            "Currency": replace_none_with_empty(input_json.get("Currency", "")),
+            "TermsOfDelCode": replace_none_with_empty(input_json.get("TermsOfDelCode", "")),
+            "OrderItems": [
+                {
+                    "ArticleNumber": replace_none_with_empty(item.get("ArticleNumber", "")),
+                    "Description": replace_none_with_empty(item.get("Description", "")),
+                    "HsCode": replace_none_with_empty(item.get("HsCode", "")),
+                    "CountryOfOrigin": replace_none_with_empty(item.get("CountryOfOrigin", "")),
+                    "Quantity": replace_none_with_empty(item.get("Quantity", "")),
+                    "NetWeight": replace_none_with_empty(item.get("NetWeight", "")),
+                    "NetAmount": replace_none_with_empty(item.get("NetAmount", "")),
+                    "PricePerPiece": replace_none_with_empty(item.get("PricePerPiece", "")),
+                    "EclEuNO": replace_none_with_empty(item.get("EclEuNO", "")),
+                }
+                for item in input_json.get("OrderItems", [])
+            ],
+            "NetWeight": replace_none_with_empty(input_json.get("NetWeight", "")),
+            "NumberOfUnits": replace_none_with_empty(input_json.get("NumberOfUnits", ""))
+        }
+        return json.dumps(order_structure, indent=4)
+    except Exception as e:
+        print(f"Error converting JSON to order structure: {e}")
+        return None
+
+def generate_detailed_prompt(ocr_data):
+    """Generates a detailed prompt for extracting invoice data from OCR."""
+    print("Generating detailed prompt...")
+    question = (
+        "You are given an invoice image and extracted OCR text.\n\n"
+        f"OCR Data:\n{ocr_data}\n\n"
+        "Extract the following fields from the invoice and return them as JSON:\n"
+        "1. **OrderNumber**: 6-8 digits (e.g., '529448').\n"
+        "2. **InvoiceNumber**: 6-8 digits (e.g., '602582').\n"
+        "3. **BuyerName**: Full name (max 100 chars, e.g., 'XYLEM WATER SOLUTIONS AS').\n"
+        "4. **BuyerAddress1**: Address line 1 (max 150 chars, e.g., 'FETVEIEN 23').\n"
+        "5. **BuyerZipCode**: Postal code (pattern '[A-Z]{2}-\\d{4}', e.g., 'NO-2007').\n"
+        "6. **BuyerCity**: City (max 50 chars, e.g., 'KJELLER').\n"
+        "7. **BuyerCountry**: Country (e.g., 'NORWAY').\n"
+        "8. **ReceiverName**: Full name (e.g., 'XYLEM WATER SOLUTIONS NORGE AS').\n"
+        "9. **ReceiverAddress1**: Address line 1 (e.g., 'JANAFLATEN 37').\n"
+        "10. **ReceiverZipCode**: Postal code (e.g., '5179').\n"
+        "11. **ReceiverCity**: City (e.g., 'GODVIK').\n"
+        "12. **ReceiverCountry**: Country (e.g., 'NORWAY').\n"
+        "13. **SellerName**: Name of the seller (e.g., 'xylem').\n"
+        "14. **OrderDate**: Date (format 'YYYY-MM-DD', e.g., '2023-09-18').\n"
+        "15. **Currency**: Currency code (3 chars, e.g., 'NOK').\n"
+        "16. **TermsOfDelCode**: Delivery code (e.g., 'DDP').\n"
+        "17. **OrderItems** (list): For each item, extract:\n"
+        "    - **ArticleNumber**: Item number (e.g., '841180').\n"
+        "    - **Description**: Item description (e.g., 'KONDENSATOR 14 MFD 450V').\n"
+        "    - **HsCode**: 8-digit HS code (e.g., '85322900').\n"
+        "    - **CountryOfOrigin**: Country (e.g., 'BG').\n"
+        "    - **Quantity**: Number of units (e.g., '1.0').\n"
+        "    - **NetWeight**: Net weight (e.g., '0.070').\n"
+        "    - **NetAmount**: Total amount (e.g., '160.28').\n"
+        "    - **PricePerPiece**: Price per unit (e.g., '160.28').\n"
+        "18. **NetWeight**: Total net weight (e.g., '55.000').\n"
+        "19. **NumberOfUnits**: Total number of units (e.g., '1.000').\n\n"
+        "Make sure the output is in valid JSON format."
+    )
+    return question
+
+def handle_inference(prompt):
+    """Handles model inference with a given prompt and returns the result."""
+    print("Performing inference...")
+    input_ids = tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+    with torch.no_grad():
+        generated_ids = model.generate(input_ids, max_length=1500)
+    response = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+    print(f"Inference result: {response}")
+    return response
+
+def run(request):
+    """Main run function for RunPod."""
+    try:
+        input_data = request["input"]
+        image_data = input_data.get("image_data")
+        pdf_data = input_data.get("pdf_data")
+        ocr_data = input_data.get("ocr_data")
+
+        if not any([image_data, pdf_data]):
+            return {"error": "Missing image or pdf data!"}
+
+        image = None
+        if pdf_data:
+            print("PDF data found, converting to image...")
+            pdf_bytes = base64.b64decode(pdf_data)
+            image = pdf_page_to_image(pdf_bytes)
+        elif image_data:
+            print("Image data found, loading image...")
+            image = load_image(image_data)
+
+        if not image:
+            return {"error": "Unable to load or convert the image"}
+
+        compacted_ocr_data = compact_ocr_data(ocr_data)
+        prompt = generate_detailed_prompt(compacted_ocr_data)
+        response = handle_inference(prompt)
+
+        json_data = convert_to_order_structure(json.loads(response))
+
+        return {
+            "invoice_data": json_data
+        }
+    except Exception as e:
+        print(f"Error during processing: {e}")
+        return {"error": f"Exception during processing: {str(e)}"}
+
+# RunPod handler setup
+runpod.serverless.start({"handler": run})
