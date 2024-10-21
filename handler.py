@@ -118,7 +118,7 @@ def convert_to_order_structure(input_json):
         return json.dumps(order_structure, indent=4)
     except Exception as e:
         print(f"Error converting JSON to order structure: {e}")
-        return None
+        return {}x
 
 def generate_detailed_prompt(ocr_data):
     # Create a compressed description of the task
@@ -145,7 +145,7 @@ def generate_detailed_prompt(ocr_data):
         "16. **Currency**: String, 3 chars (e.g., 'NOK')\n"
         "17. **TermsOfDelCode**: String (e.g., 'DDP')\n"
         "18. **OrderItems** (list):\n"
-        "    - **ArticleNumber**: Numeric 5-15 digits (e.g., '841180')\n"
+        "    - **ArticleNumber**: Numeric 5-15 digits non-decimal (e.g., '841180')\n"
         "    - **Description**: String (e.g., 'KONDENSATOR 14 MFD 450V')\n"
         "    - **HsCode**: Numeric, 8 digits (e.g., '85322900')\n"
         "    - **CountryOfOrigin**: String (e.g., 'BG')\n"
@@ -189,7 +189,7 @@ def convert_string_to_json(data_str):
         return json_data
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}\nJSON String: {json_str}")
-        return None
+        return {}
 
 
 def run(request):
