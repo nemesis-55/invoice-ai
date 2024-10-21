@@ -118,7 +118,7 @@ def convert_to_order_structure(input_json):
         return json.dumps(order_structure, indent=4)
     except Exception as e:
         print(f"Error converting JSON to order structure: {e}")
-        return {}x
+        return {}
 
 def generate_detailed_prompt(ocr_data):
     # Create a compressed description of the task
