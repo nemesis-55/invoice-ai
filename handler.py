@@ -127,8 +127,8 @@ def generate_detailed_prompt(ocr_data):
         f"OCR Data:\n{ocr_data}\n\n"
         "Extract the following fields from the invoice and return them as JSON with the correct format:\n"
         
-        "1. **OrderNumber**: Numeric, 6-8 digits (e.g., '529448')\n"
-        "2. **InvoiceNumber**: Numeric, 6-8 digits (e.g., '602582')\n"
+        "1. **OrderNumber**: Numeric, 6-15 digits (e.g., '529448')\n"
+        "2. **InvoiceNumber**: Numeric, 6-15 digits (e.g., '602582')\n"
         "3. **BuyerName**: String, 5-100 chars (e.g., 'XYLEM WATER SOLUTIONS AS')\n"
         "4. **BuyerAddress1**: String, 5-150 chars (e.g., 'FETVEIEN 23')\n"
         "5. **BuyerZipCode**: String, pattern '[A-Z]{2}-\\d{4}' (e.g., 'NO-2007')\n"
@@ -145,7 +145,7 @@ def generate_detailed_prompt(ocr_data):
         "16. **Currency**: String, 3 chars (e.g., 'NOK')\n"
         "17. **TermsOfDelCode**: String (e.g., 'DDP')\n"
         "18. **OrderItems** (list):\n"
-        "    - **ArticleNumber**: Numeric (e.g., '841180')\n"
+        "    - **ArticleNumber**: Numeric 5-15 digits (e.g., '841180')\n"
         "    - **Description**: String (e.g., 'KONDENSATOR 14 MFD 450V')\n"
         "    - **HsCode**: Numeric, 8 digits (e.g., '85322900')\n"
         "    - **CountryOfOrigin**: String (e.g., 'BG')\n"
@@ -161,7 +161,6 @@ def generate_detailed_prompt(ocr_data):
     )
 
     return question
-
 
 def handle_inference(image, prompt):
     """Handles model inference with a given prompt and returns the result."""
@@ -221,7 +220,7 @@ def run(request):
         response = handle_inference(image, prompt)
 
         return {
-            "invoice_data": response
+            "response": response
         }
     except Exception as e:
         print(f"Error during processing: {e}")
