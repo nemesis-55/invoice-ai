@@ -11,7 +11,7 @@ from peft import PeftModel
 import runpod
 
 # Constants
-DEFAULT_TARGET_SIZE = (900, 900)
+DEFAULT_TARGET_SIZE = (800, 800)
 MODEL_DPI = 600
 CACHE_DIR_MODEL = "./cache_dir/model"
 CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
