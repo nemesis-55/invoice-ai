@@ -177,9 +177,18 @@ def handle_inference(image, prompt):
         return {}
 
 def convert_string_to_json(data_str):
-    """Convert the model output string to a JSON object."""
+    """Convert the model output string to a JSON object, fixing common formatting issues."""
     print("Converting string to JSON...")
-    json_str = data_str.replace("'", '"').replace("None", "null")
+    
+    # Replace single quotes with double quotes
+    json_str = data_str.replace("'", '"')
+    
+    # Fix 'null' strings that should be JSON null values
+    json_str = re.sub(r'"null"', 'null', json_str)
+    
+    # Optionally, fix other common errors like 'None' and misformatted booleans, etc.
+    json_str = json_str.replace("None", "null")
+    
     try:
         json_data = json.loads(json_str)
         print("String successfully converted to JSON.")
@@ -187,6 +196,7 @@ def convert_string_to_json(data_str):
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}: data_str: {data_str}")
         return {}
+
 
 def extract_text_from_image(image):
     """Extract text from an image using OCR."""
