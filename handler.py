@@ -13,7 +13,7 @@ import runpod
 
 # Constants
 DEFAULT_OCR_TARGET_SIZE = (1024, 1024)
-DEFAULT_INPUT_TARGET_SIZE = (800, 800)
+DEFAULT_INPUT_TARGET_SIZE = (724, 724)
 MODEL_DPI = 600
 CACHE_DIR_MODEL = "./cache_dir/model"
 CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
@@ -213,7 +213,7 @@ def run(request):
             ocr_data = extract_text_from_image(pdf_page_to_image(pdf_bytes, MODEL_DPI, DEFAULT_OCR_TARGET_SIZE))
             ocr_data = compact_ocr_data(ocr_data)
 
-        image = pdf_page_to_image(pdf_bytes, MODEL_DPI, DEFAULT_INPUT_TARGET_SIZE)
+        image = pdf_page_to_image(pdf_bytes, 300, DEFAULT_INPUT_TARGET_SIZE)
         prompt = generate_detailed_prompt(ocr_data)
         response = handle_inference(image, prompt)
 
