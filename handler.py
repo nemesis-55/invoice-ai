@@ -177,7 +177,8 @@ def handle_inference(image, prompt):
         return {}
 
 def convert_string_to_json(data_str):
-    """Convert the model output string to a JSON object, fixing common formatting issues."""
+    """Convert the input string into a valid JSON object."""
+    
     print("Converting string to JSON...")
     
     # Replace single quotes with double quotes
@@ -186,10 +187,11 @@ def convert_string_to_json(data_str):
     # Fix 'null' strings that should be JSON null values
     json_str = re.sub(r'"null"', 'null', json_str)
     
-    # Optionally, fix other common errors like 'None' and misformatted booleans, etc.
-    json_str = json_str.replace("None", "null")
+    # Escape problematic double quotes within values (e.g., in descriptions)
+    json_str = re.sub(r'(?<=\w)"(?=\w)', '\\"', json_str)
     
     try:
+        # Parse the cleaned JSON string
         json_data = json.loads(json_str)
         print("String successfully converted to JSON.")
         return json_data
