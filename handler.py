@@ -8,32 +8,27 @@ import json
 from transformers import AutoTokenizer, AutoModel
 import re
 from peft import PeftModel
+import pytesseract
 import runpod
 
 # Constants
-DEFAULT_TARGET_SIZE = (800, 800)
+DEFAULT_OCR_TARGET_SIZE = (1024, 1024)
+DEFAULT_INPUT_TARGET_SIZE = (800, 800)
 MODEL_DPI = 600
 CACHE_DIR_MODEL = "./cache_dir/model"
 CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 
 # Load model and tokenizer
 model_type = "openbmb/MiniCPM-Llama3-V-2_5"
-path_to_adapter = os.getenv("ADAPTER_DIR","Zorro123444/xylem_invoice_extracter")
+path_to_adapter = os.getenv("ADAPTER_DIR", "Zorro123444/xylem_invoice_extracter")
 
-print("Loading model...")
+print("Loading model and tokenizer...")
 model = AutoModel.from_pretrained(model_type, trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16, 
-    cache_dir=CACHE_DIR_MODEL )
-model = PeftModel.from_pretrained(
-    model,
-    path_to_adapter,
-    device_map="cuda",
-    trust_remote_code=True,
-    torch_dtype=torch.bfloat16, 
-    cache_dir=CACHE_DIR_ADAPTOR
-).eval()
-
+                                  cache_dir=CACHE_DIR_MODEL)
+model = PeftModel.from_pretrained(model, path_to_adapter, device_map="cuda", trust_remote_code=True, torch_dtype=torch.bfloat16, 
+                                  cache_dir=CACHE_DIR_ADAPTOR).eval()
 tokenizer = AutoTokenizer.from_pretrained(path_to_adapter, trust_remote_code=True)
-print("Model and tokenizer loaded.")
+print("Model and tokenizer loaded successfully.")
 
 def compact_ocr_data(ocr_data):
     """Compact the OCR extracted data by removing excessive spaces and line breaks."""
@@ -42,9 +37,10 @@ def compact_ocr_data(ocr_data):
     cleaned_text = re.sub(r'[ ]{2,}', ' ', cleaned_text).strip()
     cleaned_text = re.sub(r'\n\s+', '\n', cleaned_text)
     cleaned_text = re.sub(r'(?<!\n)\n(?!\n)', ' ', cleaned_text)
+    print("OCR data compacted.")
     return cleaned_text
 
-def pdf_page_to_image(pdf_page_bytes, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_SIZE):
+def pdf_page_to_image(pdf_page_bytes, dpi=MODEL_DPI, target_size=DEFAULT_INPUT_TARGET_SIZE):
     """Converts base64-encoded PDF bytes into an image and resizes it."""
     try:
         print("Converting PDF page to image...")
@@ -55,6 +51,7 @@ def pdf_page_to_image(pdf_page_bytes, dpi=MODEL_DPI, target_size=DEFAULT_TARGET_
         pix = page.get_pixmap(dpi=dpi)
         image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         resized_image = image.resize(target_size, Image.Resampling.LANCZOS)
+        print(f"PDF converted to image with size {resized_image.size}.")
         return resized_image
     except Exception as e:
         print(f"Error rendering PDF page: {e}")
@@ -115,6 +112,7 @@ def convert_to_order_structure(input_json):
             "NetWeight": replace_none_with_empty(input_json.get("NetWeight", "")),
             "NumberOfUnits": replace_none_with_empty(input_json.get("NumberOfUnits", ""))
         }
+        print("JSON converted to order structure successfully.")
         return json.dumps(order_structure, indent=4)
     except Exception as e:
         print(f"Error converting JSON to order structure: {e}")
@@ -160,71 +158,73 @@ def generate_detailed_prompt(ocr_data):
         "Match all values to the invoice exactly. Missing fields should be returned as null. Return the result as valid JSON."
     )
 
+    print(f"Generated prompt length: {len(question)}")
     return question
 
 def handle_inference(image, prompt):
     """Handles model inference with a given prompt and returns the result."""
     print("Performing inference...")
-    # Prepare messages for the chat model
     msgs = [{"role": "user", "content": prompt}]
 
-    with torch.no_grad():
-        outputs = model.chat(image=image, msgs=msgs, tokenizer=tokenizer, max_new_tokens=8192)
-    order_json = convert_to_order_structure(convert_string_to_json(outputs))
-    print(order_json)
-    print(f"Inference result: {order_json}")
-    return order_json
-
-
-def convert_string_to_json(data_str):
-    # Step 1: Replace single quotes with double quotes for JSON compatibility
-    json_str = data_str.replace("'", '"')
-
-    # Step 2: Replace 'None' with 'null' for JSON compatibility
-    json_str = json_str.replace("None", "null")
-
     try:
-        # Step 3: Use json.loads to convert the string to a JSON object (Python dictionary)
-        json_data = json.loads(json_str)
-        return json_data
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}\nJSON String: {json_str}")
+        with torch.no_grad():
+            outputs = model.chat(image=image, msgs=msgs, tokenizer=tokenizer, max_new_tokens=8192)
+        order_json = convert_to_order_structure(convert_string_to_json(outputs))
+        print("Inference completed.")
+        return order_json
+    except Exception as e:
+        print(f"Error during inference: {e}")
         return {}
 
+def convert_string_to_json(data_str):
+    """Convert the model output string to a JSON object."""
+    print("Converting string to JSON...")
+    json_str = data_str.replace("'", '"').replace("None", "null")
+    try:
+        json_data = json.loads(json_str)
+        print("String successfully converted to JSON.")
+        return json_data
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return {}
+
+def extract_text_from_image(image):
+    """Extract text from an image using OCR."""
+    print("Extracting text from image...")
+    text = pytesseract.image_to_string(image)
+    print(f"Extracted text length: {len(text)}...")  # Print first 100 characters of extracted text
+    return text
 
 def run(request):
-    """Main run function for RunPod."""
+    """Main run function for processing requests."""
+    print("Starting request processing...")
     try:
         input_data = request["input"]
-        image_data = input_data.get("image_data")
         pdf_data = input_data.get("pdf_data")
         ocr_data = input_data.get("ocr_data")
 
-        if not any([image_data, pdf_data]):
-            return {"error": "Missing image or pdf data!"}
+        if not pdf_data:
+            return {"error": "Missing pdf data!"}
 
-        image = None
-        if pdf_data:
-            print("PDF data found, converting to image...")
-            pdf_bytes = base64.b64decode(pdf_data)
-            image = pdf_page_to_image(pdf_bytes)
-        elif image_data:
-            print("Image data found, loading image...")
-            image = load_image(image_data)
+        pdf_bytes = base64.b64decode(pdf_data)
 
-        if not image:
-            return {"error": "Unable to load or convert the image"}
+        if not ocr_data:
+            print("No OCR data provided, extracting from image...")
+            ocr_data = extract_text_from_image(pdf_page_to_image(pdf_bytes, MODEL_DPI, DEFAULT_OCR_TARGET_SIZE))
+            ocr_data = compact_ocr_data(ocr_data)
 
-        compacted_ocr_data = compact_ocr_data(ocr_data)
-        prompt = generate_detailed_prompt(compacted_ocr_data)
+        image = pdf_page_to_image(pdf_bytes, MODEL_DPI, DEFAULT_INPUT_TARGET_SIZE)
+        prompt = generate_detailed_prompt(ocr_data)
         response = handle_inference(image, prompt)
 
-        return {
-            "response": response
-        }
+        print("Request processed successfully.")
+        return {"response": response}
+
     except Exception as e:
-        print(f"Error during processing: {e}")
+        print(f"Error during request processing: {e}")
         return {"error": f"Exception during processing: {str(e)}"}
 
-# RunPod handler setup
+# Start RunPod handler
+print("Starting RunPod serverless handler...")
 runpod.serverless.start({"handler": run})
+

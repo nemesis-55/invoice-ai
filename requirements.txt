@@ -10,3 +10,4 @@ peft
 timm
 sentencepiece
 tensorboardX
+pytesseract
