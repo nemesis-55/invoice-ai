@@ -177,21 +177,21 @@ def handle_inference(image, prompt):
         return {}
 
 def convert_string_to_json(data_str):
-    """Convert the input string into a valid JSON object."""
+    """Convert the input string into a valid JSON object by handling quotes in a simplified way."""
     
     print("Converting string to JSON...")
     
-    # Replace single quotes with double quotes
-    json_str = data_str.replace("'", '"')
+    # Step 1: Replace internal double quotes (") with spaces (or a placeholder)
+    json_str = data_str.replace('"', ' ')  # You can also use another placeholder if needed
     
-    # Fix 'null' strings that should be JSON null values
+    # Step 2: Replace single quotes with double quotes for JSON format
+    json_str = json_str.replace("'", '"')
+    
+    # Step 3: Replace 'null' strings with proper JSON null values
     json_str = re.sub(r'"null"', 'null', json_str)
     
-    # Escape problematic double quotes within values (e.g., in descriptions)
-    json_str = re.sub(r'(?<=\w)"(?=\w)', '\\"', json_str)
-    
     try:
-        # Parse the cleaned JSON string
+        # Parse the cleaned JSON string into a Python dictionary
         json_data = json.loads(json_str)
         print("String successfully converted to JSON.")
         return json_data
