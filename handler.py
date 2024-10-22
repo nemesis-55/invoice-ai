@@ -189,6 +189,9 @@ def convert_string_to_json(data_str):
     
     # Step 3: Replace 'null' strings with proper JSON null values
     json_str = json_str.replace('"null"', 'null')
+    
+    # Step 4: Handle potential trailing commas (Python doesn't allow trailing commas in dicts/lists)
+    json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)  # Remove trailing commas before closing braces
 
     try:
         # Parse the cleaned JSON string into a Python dictionary
