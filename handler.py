@@ -185,7 +185,7 @@ def convert_string_to_json(data_str):
         print("String successfully converted to JSON.")
         return json_data
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
+        print(f"Error decoding JSON: {e}: data_str: {data_str}")
         return {}
 
 def extract_text_from_image(image):
