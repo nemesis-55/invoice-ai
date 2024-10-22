@@ -183,15 +183,12 @@ def convert_string_to_json(data_str):
     
     # Step 1: Replace internal double quotes (") with spaces (or a placeholder)
     # This step may not be needed, let's just focus on the main fixes.
-    
+    data_str = data_str.strip()
     # Step 2: Replace single quotes with double quotes
     json_str = data_str.replace("'", '"')
     
     # Step 3: Replace 'null' strings with proper JSON null values
     json_str = json_str.replace('"null"', 'null')
-    
-    # Step 4: Handle potential trailing commas (Python doesn't allow trailing commas in dicts/lists)
-    json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)  # Remove trailing commas before closing braces
 
     try:
         # Parse the cleaned JSON string into a Python dictionary
