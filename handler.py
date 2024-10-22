@@ -187,13 +187,13 @@ def convert_string_to_json(data_str):
     # Step 2: Replace single quotes with double quotes
     json_str = data_str.replace('"', ' ')
     
+    
     json_str = data_str.replace("'", '"')
+
     
     # Step 3: Replace 'null' strings with proper JSON null values
     json_str = json_str.replace('"null"', 'null')
     
-    # Step 4: Handle potential trailing commas (Python doesn't allow trailing commas in dicts/lists)
-    json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)  # Remove trailing commas before closing braces
 
     try:
         # Parse the cleaned JSON string into a Python dictionary
@@ -201,7 +201,7 @@ def convert_string_to_json(data_str):
         print("String successfully converted to JSON.")
         return json_data
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}: data_str: {data_str}")
+        print(f"Error decoding JSON: {e}: json_str: {json_str}")
         return {}
 
 
