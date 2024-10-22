@@ -185,6 +185,8 @@ def convert_string_to_json(data_str):
     # This step may not be needed, let's just focus on the main fixes.
     data_str = data_str.strip()
     # Step 2: Replace single quotes with double quotes
+    json_str = data_str.replace('"', ' ')
+    
     json_str = data_str.replace("'", '"')
     
     # Step 3: Replace 'null' strings with proper JSON null values
