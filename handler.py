@@ -1,4 +1,3 @@
-import os
 import base64
 import torch
 from PIL import Image
@@ -6,8 +5,10 @@ from transformers import AutoTokenizer, AutoModel
 from peft import PeftModel
 import pytesseract
 import runpod
-from pdf2image import convert_from_bytes
 from huggingface_hub import login
+import fitz  # PyMuPDF
+from PIL import Image
+import io
 
 # Constants
 CACHE_DIR_MODEL = "./cache_dir/model"
@@ -34,15 +35,48 @@ except Exception as e:
     print(f"Error loading model or tokenizer: {e}")
     raise
 
-def pdf_bytes_to_images(pdf_bytes, dpi=300):
+import fitz  # PyMuPDF
+from PIL import Image
+
+def pdf_bytes_to_images(pdf_bytes, dpi=600):
+    """
+    Converts a PDF (in bytes) to a dictionary of page numbers mapped to in-memory PIL Image objects.
+
+    Args:
+        pdf_bytes (bytes): The PDF file content in bytes.
+        dpi (int): Dots per inch resolution for the output images.
+
+    Returns:
+        dict: A dictionary where keys are page numbers (as strings) and values are PIL Image objects.
+    """
     try:
         print("Converting PDF bytes to images...")
-        images = convert_from_bytes(pdf_bytes, dpi=dpi)
-        print(f"Converted {len(images)} pages to images.")
-        return images
+
+        # Load the PDF from bytes
+        pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        images_with_page = {}
+
+        for page_num in range(len(pdf_document)):
+            # Load the page
+            page = pdf_document.load_page(page_num)
+            
+            # Render the page to a pixmap
+            pixmap = page.get_pixmap(dpi=dpi)
+            
+            # Convert the pixmap to a PIL Image
+            image = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
+            
+            # Store the page number and PIL Image
+            images_with_page[str(page_num + 1)] = image
+
+        print(f"Converted {len(images_with_page)} pages to images.")
+        return images_with_page
+
     except Exception as e:
         print(f"Error converting PDF bytes to images: {e}")
         raise
+
+
 
 def extract_text_from_pdf_bytes(pdf_bytes):
     try:
@@ -61,7 +95,7 @@ def extract_text_from_pdf_bytes(pdf_bytes):
 def generate_detailed_prompt(pdf_bytes, ocr_data):
     try:
         print("Generating detailed prompt...")
-        images = pdf_bytes_to_images(pdf_bytes)
+        images = pdf_bytes_to_images(pdf_bytes, 600)
         if not images:
             raise ValueError("No images generated from the PDF bytes.")
         
@@ -114,7 +148,7 @@ def generate_detailed_prompt(pdf_bytes, ocr_data):
             "### Note:\n"
             "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted from the OCR data."
         )
-        prompt = [{'role': 'user', 'content': [images[0], question]}]
+        prompt = [{'role': 'user', 'content': [images["1"], question]}]
         print("Detailed prompt generated.")
         return prompt
     except Exception as e:
