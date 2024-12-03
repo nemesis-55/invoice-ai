@@ -12,3 +12,4 @@ sentencepiece
 tensorboardX
 pytesseract
 pdf2image
+poppler-utils
