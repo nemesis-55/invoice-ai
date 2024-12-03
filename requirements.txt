@@ -10,6 +10,7 @@ transformers==4.40.0
 uvicorn==0.24.0.post1
 sentencepiece==0.1.99
 accelerate==0.30.1
+urllib3==1.26.16
 decord
 runpod
 pymupdf
