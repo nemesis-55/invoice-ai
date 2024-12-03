@@ -16,7 +16,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 RUN pip install --no-cache-dir packaging setuptools wheel
 
 # Install PyTorch explicitly
-RUN pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu117
+RUN pip install torch==2.0.1+cu117 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu117
 
 # Install Python dependencies
 COPY requirements.txt .
