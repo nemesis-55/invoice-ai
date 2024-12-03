@@ -1,3 +1,4 @@
+import os
 import base64
 import torch
 from PIL import Image
@@ -7,98 +8,75 @@ import pytesseract
 import runpod
 from huggingface_hub import login
 import fitz  # PyMuPDF
-from PIL import Image
-import io
 
 # Constants
 CACHE_DIR_MODEL = "./cache_dir/model"
-CACHE_DIR_ADAPTOR =  "./cache_dir/adaptor"
+CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
+HUGGINGFACE_TOKEN = "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"
 
-# Load model and tokenizer
-model_type = "openbmb/MiniCPM-V-2_6"
-adaptor_type = "Zorro123444/invoice_extracter_2"
+# Hugging Face Login
+def authenticate_huggingface(token):
+    try:
+        login(token)
+        print("Logged in to Hugging Face successfully.")
+    except Exception as e:
+        print(f"Error logging in to Hugging Face: {e}")
+        raise
 
-# Log in with your Hugging Face token
-login("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")
+# Load Model and Tokenizer
+def load_model_and_tokenizer(model_type, adaptor_type, model_cache, adaptor_cache):
+    try:
+        print("Loading model and tokenizer...")
+        model = AutoModel.from_pretrained(
+            model_type, trust_remote_code=True, device_map="cuda", cache_dir=model_cache
+        )
+        model = PeftModel.from_pretrained(
+            model, adaptor_type, trust_remote_code=True, device_map="cuda", cache_dir=adaptor_cache
+        ).eval()
+        tokenizer = AutoTokenizer.from_pretrained(model_type, trust_remote_code=True)
+        print("Model and tokenizer loaded successfully.")
+        return model, tokenizer
+    except Exception as e:
+        print(f"Error loading model or tokenizer: {e}")
+        raise
 
-print("Loading model and tokenizer...")
-try:
-    model = AutoModel.from_pretrained(
-        model_type, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL
-    )
-    model = PeftModel.from_pretrained(
-        model, adaptor_type, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR
-    ).eval()
-    tokenizer = AutoTokenizer.from_pretrained(model_type, trust_remote_code=True)
-    print("Model and tokenizer loaded successfully.")
-except Exception as e:
-    print(f"Error loading model or tokenizer: {e}")
-    raise
-
-import fitz  # PyMuPDF
-from PIL import Image
-
+# Convert PDF Bytes to Images
 def pdf_bytes_to_images(pdf_bytes, dpi=600):
-    """
-    Converts a PDF (in bytes) to a dictionary of page numbers mapped to in-memory PIL Image objects.
-
-    Args:
-        pdf_bytes (bytes): The PDF file content in bytes.
-        dpi (int): Dots per inch resolution for the output images.
-
-    Returns:
-        dict: A dictionary where keys are page numbers (as strings) and values are PIL Image objects.
-    """
     try:
         print("Converting PDF bytes to images...")
-
-        # Load the PDF from bytes
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
-        images_with_page = {}
-
-        for page_num in range(len(pdf_document)):
-            # Load the page
-            page = pdf_document.load_page(page_num)
-            
-            # Render the page to a pixmap
-            pixmap = page.get_pixmap(dpi=dpi)
-            
-            # Convert the pixmap to a PIL Image
-            image = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
-            
-            # Store the page number and PIL Image
-            images_with_page[str(page_num + 1)] = image
-
+        images_with_page = {
+            str(page_num + 1): Image.frombytes(
+                "RGB", [pixmap.width, pixmap.height], pixmap.samples
+            )
+            for page_num, pixmap in enumerate(
+                [pdf_document.load_page(i).get_pixmap(dpi=dpi) for i in range(len(pdf_document))]
+            )
+        }
         print(f"Converted {len(images_with_page)} pages to images.")
         return images_with_page
-
     except Exception as e:
         print(f"Error converting PDF bytes to images: {e}")
         raise
 
-
-
-def extract_text_from_pdf_bytes(pdf_bytes):
+# Extract Text from PDF Bytes
+def extract_text_from_pdf_bytes(pdf_bytes, dpi=600):
     try:
         print("Extracting text from PDF bytes...")
-        images = pdf_bytes_to_images(pdf_bytes, dpi=600)
-        text = ""
-        for idx, image in enumerate(images):
-            print(f"Extracting text from page {idx + 1}...")
-            text += pytesseract.image_to_string(image)
+        images = pdf_bytes_to_images(pdf_bytes, dpi)
+        text = "\n".join(
+            pytesseract.image_to_string(image) for page_num, image in images.items()
+        )
         print("Text extraction completed.")
         return text
     except Exception as e:
         print(f"Error during text extraction: {e}")
         raise
 
-def generate_detailed_prompt(pdf_bytes, ocr_data):
+# Generate Detailed Prompt
+def generate_detailed_prompt(ocr_data):
     try:
         print("Generating detailed prompt...")
-        images = pdf_bytes_to_images(pdf_bytes, 600)
-        if not images:
-            raise ValueError("No images generated from the PDF bytes.")
-        
         question = (
             "You are an AI model specialized in data extraction from invoices. "
             "Below, you are provided with OCR-extracted text from an invoice. "
@@ -148,52 +126,54 @@ def generate_detailed_prompt(pdf_bytes, ocr_data):
             "### Note:\n"
             "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted from the OCR data."
         )
-        prompt = [{'role': 'user', 'content': [images["1"], question]}]
-        print("Detailed prompt generated.")
-        return prompt
+        return [{"role": "user", "content": question}]
     except Exception as e:
         print(f"Error generating detailed prompt: {e}")
         raise
 
-def handle_inference(prompt):
-    print("Performing inference...")
+# Perform Inference
+def handle_inference(prompt, model, tokenizer):
     try:
+        print("Performing inference...")
         with torch.no_grad():
-            outputs = model.chat(image=None, msgs=prompt, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=None, msgs=prompt, tokenizer=tokenizer, max_new_tokens=8192)
         print("Inference completed.")
-        return outputs
+        return response
     except Exception as e:
         print(f"Error during inference: {e}")
         return {"error": f"Inference failed: {e}"}
 
+# Main Request Handler
 def run(request):
-    """Main run function for processing requests."""
-    print("Starting request processing...")
     try:
-        input_data = request["input"]
+        print("Processing request...")
+        input_data = request.get("input", {})
         pdf_data = input_data.get("pdf_data")
         ocr_data = input_data.get("ocr_data")
 
         if not pdf_data:
-            return {"error": "Missing pdf data!"}
+            return {"error": "Missing PDF data."}
 
         pdf_bytes = base64.b64decode(pdf_data)
-
         if not ocr_data:
-            print("No OCR data provided, extracting from image...")
+            print("No OCR data provided. Extracting from PDF...")
             ocr_data = extract_text_from_pdf_bytes(pdf_bytes)
 
-        prompt = generate_detailed_prompt(pdf_bytes, ocr_data)
-        response = handle_inference(prompt)
+        prompt = generate_detailed_prompt(ocr_data)
+        response = handle_inference(prompt, model, tokenizer)
 
         print("Request processed successfully.")
         return {"response": response}
-
     except Exception as e:
-        print(f"Error during request processing: {e}")
-        return {"error": f"Exception during processing: {str(e)}"}
+        print(f"Error processing request: {e}")
+        return {"error": f"Exception during processing: {e}"}
 
-# Start RunPod handler
+# Authenticate and Load Resources
 if __name__ == "__main__":
-    print("Starting RunPod serverless handler...")
+    print("Starting RunPod handler...")
+    authenticate_huggingface(HUGGINGFACE_TOKEN)
+    model, tokenizer = load_model_and_tokenizer(model_type="openbmb/MiniCPM-V-2_6", 
+                                                adaptor_type="Zorro123444/invoice_extracter_2", 
+                                                model_cache=CACHE_DIR_MODEL, 
+                                                adaptor_cache=CACHE_DIR_ADAPTOR)
     runpod.serverless.start({"handler": run})
