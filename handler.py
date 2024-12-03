@@ -10,12 +10,12 @@ from pdf2image import convert_from_bytes
 from huggingface_hub import login
 
 # Constants
-CACHE_DIR_MODEL = os.getenv("ADAPTER_DIR", "./cache_dir/model")
-CACHE_DIR_ADAPTOR = os.getenv("CACHE_DIR_ADAPTOR", "./cache_dir/adaptor")
+CACHE_DIR_MODEL = "./cache_dir/model"
+CACHE_DIR_ADAPTOR =  "./cache_dir/adaptor"
 
 # Load model and tokenizer
 model_type = "openbmb/MiniCPM-V-2_6"
-path_to_adapter = os.getenv("ADAPTER_DIR", "Zorro123444/invoice_extracter_2")
+adaptor_type = "Zorro123444/invoice_extracter_2"
 
 # Log in with your Hugging Face token
 login("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")
@@ -26,7 +26,7 @@ try:
         model_type, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL
     )
     model = PeftModel.from_pretrained(
-        model, path_to_adapter, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR
+        model, adaptor_type, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR
     ).eval()
     tokenizer = AutoTokenizer.from_pretrained(model_type, trust_remote_code=True)
     print("Model and tokenizer loaded successfully.")

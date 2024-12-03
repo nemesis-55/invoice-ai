@@ -34,10 +34,6 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 # Create directories for models and adapters
 RUN mkdir -p ${ADAPTER_DIR} ${CACHE_DIR_MODEL} ${CACHE_DIR_ADAPTOR}
 
-# Clone the adapter repository (using Git LFS)
-RUN git clone https://huggingface.co/Zorro123444/invoice_extracter_2 $ADAPTER_DIR && \
-    cd $ADAPTER_DIR && git lfs pull && \
-    rm -rf /root/.cache/git-lfs
 
 # Copy the handler script to the container
 COPY handler.py ./
