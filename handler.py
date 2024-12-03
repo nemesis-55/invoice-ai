@@ -1,16 +1,11 @@
-import os
 import base64
 import torch
 from PIL import Image
 from transformers import AutoTokenizer, AutoModel
-from peft import PeftModel
 import pytesseract
 import runpod
 from huggingface_hub import login
 import fitz  # PyMuPDF
-
-# Constants
-HUGGINGFACE_TOKEN = "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"
 
 # Hugging Face Login
 def authenticate_huggingface(token):
@@ -22,11 +17,12 @@ def authenticate_huggingface(token):
         raise
 
 # Load Model and Tokenizer
-def load_model_and_tokenizer(model_type, model_cache):
+def load_model_and_tokenizer(model_type):
     try:
         print("Loading model and tokenizer...")
-        model = AutoModel.from_pretrained(model_type, trust_remote_code=True, device_map="cuda", cache_dir=model_cache).eval()
         tokenizer = AutoTokenizer.from_pretrained(model_type, trust_remote_code=True)
+        print("tokenizer loaded")
+        model = AutoModel.from_pretrained(model_type, trust_remote_code=True, device_map="cuda").cuda().eval()
         print("Model and tokenizer loaded successfully.")
         return model, tokenizer
     except Exception as e:
@@ -82,42 +78,7 @@ def generate_detailed_prompt(ocr_data):
             "4. Maintain the exact formatting of numeric values and dates as found in the input.\n"
             "5. Do not include additional explanations or comments in your output.\n\n"
             "### JSON Structure:\n"
-            "{\n"
-            "    \"OrderNumber\": \"<string>\",\n"
-            "    \"InvoiceNumber\": \"<string>\",\n"
-            "    \"BuyerName\": \"<string>\",\n"
-            "    \"BuyerAddress1\": \"<string>\",\n"
-            "    \"BuyerZipCode\": \"<string>\",\n"
-            "    \"BuyerCity\": \"<string>\",\n"
-            "    \"BuyerCountry\": \"<string>\",\n"
-            "    \"ReceiverName\": \"<string>\",\n"
-            "    \"ReceiverAddress1\": \"<string>\",\n"
-            "    \"ReceiverZipCode\": \"<string>\",\n"
-            "    \"ReceiverCity\": \"<string>\",\n"
-            "    \"ReceiverCountry\": \"<string>\",\n"
-            "    \"SellerName\": \"<string>\",\n"
-            "    \"NetAmount\": \"<string>\",\n"
-            "    \"OrderDate\": \"<YYYY-MM-DD>\",\n"
-            "    \"Currency\": \"<string>\",\n"
-            "    \"TermsOfDelCode\": \"<string>\",\n"
-            "    \"OrderItems\": [\n"
-            "        {\n"
-            "            \"ArticleNumber\": \"<string>\",\n"
-            "            \"Description\": \"<string>\",\n"
-            "            \"HsCode\": \"<string>\",\n"
-            "            \"CountryOfOrigin\": \"<string>\",\n"
-            "            \"Quantity\": \"<string>\",\n"
-            "            \"NetWeight\": \"<string>\",\n"
-            "            \"NetAmount\": \"<string>\",\n"
-            "            \"PricePerPiece\": \"<string>\",\n"
-            "            \"EclEuNO\": \"<string>\"\n"
-            "        }\n"
-            "    ],\n"
-            "    \"NetWeight\": \"<string>\",\n"
-            "    \"NumberOfUnits\": \"<string>\"\n"
-            "}\n\n"
-            "### Note:\n"
-            "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted from the OCR data."
+            "{...}\n"
         )
         return [{"role": "user", "content": question}]
     except Exception as e:
@@ -161,11 +122,9 @@ def run(request):
         print(f"Error processing request: {e}")
         return {"error": f"Exception during processing: {e}"}
 
-print("login to hugging face")
-authenticate_huggingface(HUGGINGFACE_TOKEN)
-print("Loading model")
-model, tokenizer = load_model_and_tokenizer("Zorro123444/invoice_extracter_2", "./cache_dir/model")
-
 # Authenticate and Load Resources
-if __name__ == "__main__":    
+if __name__ == "__main__":
+    HUGGINGFACE_TOKEN = "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"
+    authenticate_huggingface(HUGGINGFACE_TOKEN)
+    model, tokenizer = load_model_and_tokenizer("openbmb/MiniCPM-V-2_6")
     runpod.serverless.start({"handler": run})
