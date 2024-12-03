@@ -15,14 +15,15 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 # Pre-install essential Python packages to avoid build issues
 RUN pip install --no-cache-dir packaging setuptools wheel
 
+# Install PyTorch explicitly
+RUN pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu117
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the handler script
-COPY handler.py ./
-
-
+COPY handler.py .
 
 # Set the entry point
 CMD ["python", "-u", "handler.py"]
