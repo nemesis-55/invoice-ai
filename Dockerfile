@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 # Set Python3 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
-RUN pip install flash_attn
+RUN pip install packaging flash_attn
 
 # Install Python dependencies from the requirements file
 COPY requirements.txt .
