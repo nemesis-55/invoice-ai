@@ -1,71 +1,63 @@
 import base64
 import torch
 from PIL import Image
-from transformers import AutoTokenizer, AutoModel
+import fitz  # PyMuPDF for handling PDFs
 import pytesseract
+from transformers import AutoTokenizer, AutoModel
+from peft import PeftModel
 import runpod
-from huggingface_hub import login
-import fitz  # PyMuPDF
 
-# Hugging Face Login
-def authenticate_huggingface(token):
-    try:
-        login(token)
-        print("Logged in to Hugging Face successfully.")
-    except Exception as e:
-        print(f"Error logging in to Hugging Face: {e}")
-        raise
+# Constants
+MODEL_DPI = 600
+MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
+ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
+CACHE_DIR_MODEL = "./cache_dir/model"
+CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 
 # Load Model and Tokenizer
-def load_model_and_tokenizer(model_type):
+def load_model_and_tokenizer():
+    """Load the main model and tokenizer."""
+    print("Loading model and tokenizer...")
     try:
-        print("Loading model and tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(model_type, trust_remote_code=True)
-        print("tokenizer loaded")
-        model = AutoModel.from_pretrained(model_type, trust_remote_code=True, device_map="cuda").cuda().eval()
+        base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL)
+        model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR).eval()
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("Model and tokenizer loaded successfully.")
         return model, tokenizer
     except Exception as e:
-        print(f"Error loading model or tokenizer: {e}")
-        raise
+        raise RuntimeError(f"Error loading model or tokenizer: {e}")
 
-# Convert PDF Bytes to Images
-def pdf_bytes_to_images(pdf_bytes, dpi=600):
+# Convert PDF Page to Image
+def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
+    """Convert a single-page PDF to an image."""
     try:
-        print("Converting PDF bytes to images...")
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
-        images_with_page = {
-            str(page_num + 1): Image.frombytes(
-                "RGB", [pixmap.width, pixmap.height], pixmap.samples
-            )
-            for page_num, pixmap in enumerate(
-                [pdf_document.load_page(i).get_pixmap(dpi=dpi) for i in range(len(pdf_document))]
-            )
-        }
-        print(f"Converted {len(images_with_page)} pages to images.")
-        return images_with_page
+        if len(pdf_document) < 1:
+            raise ValueError("The PDF does not contain any pages.")
+        page = pdf_document.load_page(0)
+        pix = page.get_pixmap(dpi=dpi)
+        return Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
     except Exception as e:
-        print(f"Error converting PDF bytes to images: {e}")
-        raise
+        raise ValueError(f"Error converting PDF to image: {e}")
 
-# Extract Text from PDF Bytes
-def extract_text_from_pdf_bytes(pdf_bytes, dpi=600):
+# Extract Text using OCR
+def extract_text_from_image(pdf_bytes, dpi=MODEL_DPI):
+    """Extract text from an image derived from the PDF."""
+    print("Extracting text from PDF...")
     try:
-        print("Extracting text from PDF bytes...")
-        images = pdf_bytes_to_images(pdf_bytes, dpi)
-        text = "\n".join(
-            pytesseract.image_to_string(image) for page_num, image in images.items()
-        )
-        print("Text extraction completed.")
+        image = pdf_to_image(pdf_bytes, dpi)
+        text = pytesseract.image_to_string(image)
+        print(f"Extracted text length: {len(text)} characters.")
         return text
     except Exception as e:
-        print(f"Error during text extraction: {e}")
-        raise
+        raise RuntimeError(f"Error during text extraction: {e}")
 
 # Generate Detailed Prompt
-def generate_detailed_prompt(ocr_data):
+def generate_prompt(pdf_bytes, ocr_data):
+    """Create the detailed prompt for the model."""
     try:
-        print("Generating detailed prompt...")
+        print("Generating prompt...")
+        image = pdf_to_image(pdf_bytes)
         question = (
             "You are an AI model specialized in data extraction from invoices. "
             "Below, you are provided with OCR-extracted text from an invoice. "
@@ -78,29 +70,65 @@ def generate_detailed_prompt(ocr_data):
             "4. Maintain the exact formatting of numeric values and dates as found in the input.\n"
             "5. Do not include additional explanations or comments in your output.\n\n"
             "### JSON Structure:\n"
-            "{...}\n"
+            "The JSON structure must match the following format exactly:\n"
+            "{\n"
+            "    \"OrderNumber\": \"<string>\",\n"
+            "    \"InvoiceNumber\": \"<string>\",\n"
+            "    \"BuyerName\": \"<string>\",\n"
+            "    \"BuyerAddress1\": \"<string>\",\n"
+            "    \"BuyerZipCode\": \"<string>\",\n"
+            "    \"BuyerCity\": \"<string>\",\n"
+            "    \"BuyerCountry\": \"<string>\",\n"
+            "    \"ReceiverName\": \"<string>\",\n"
+            "    \"ReceiverAddress1\": \"<string>\",\n"
+            "    \"ReceiverZipCode\": \"<string>\",\n"
+            "    \"ReceiverCity\": \"<string>\",\n"
+            "    \"ReceiverCountry\": \"<string>\",\n"
+            "    \"SellerName\": \"<string>\",\n"
+            "    \"NetAmount\": \"<string>\",\n"
+            "    \"OrderDate\": \"<YYYY-MM-DD>\",\n"
+            "    \"Currency\": \"<string>\",\n"
+            "    \"TermsOfDelCode\": \"<string>\",\n"
+            "    \"OrderItems\": [\n"
+            "        {\n"
+            "            \"ArticleNumber\": \"<string>\",\n"
+            "            \"Description\": \"<string>\",\n"
+            "            \"HsCode\": \"<string>\",\n"
+            "            \"CountryOfOrigin\": \"<string>\",\n"
+            "            \"Quantity\": \"<string>\",\n"
+            "            \"NetWeight\": \"<string>\",\n"
+            "            \"NetAmount\": \"<string>\",\n"
+            "            \"PricePerPiece\": \"<string>\",\n"
+            "            \"EclEuNO\": \"<string>\"\n"
+            "        }\n"
+            "    ],\n"
+            "    \"NetWeight\": \"<string>\",\n"
+            "    \"NumberOfUnits\": \"<string>\"\n"
+            "}\n\n"
+            "### Note:\n"
+            "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted from the OCR data."
         )
-        return [{"role": "user", "content": question}]
+        
+        return [{"role": "user", "content": [image, question]}]
     except Exception as e:
-        print(f"Error generating detailed prompt: {e}")
-        raise
+        raise RuntimeError(f"Error generating prompt: {e}")
 
-# Perform Inference
-def handle_inference(prompt, model, tokenizer):
+# Handle Inference
+def perform_inference(messages, model, tokenizer):
+    """Perform model inference."""
+    print("Performing inference...")
     try:
-        print("Performing inference...")
         with torch.no_grad():
-            response = model.chat(image=None, msgs=prompt, tokenizer=tokenizer, max_new_tokens=8192)
-        print("Inference completed.")
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
         return response
     except Exception as e:
-        print(f"Error during inference: {e}")
-        return {"error": f"Inference failed: {e}"}
+        raise RuntimeError(f"Inference failed: {e}")
 
 # Main Request Handler
 def run(request):
+    """Process incoming requests."""
+    print("Processing request...")
     try:
-        print("Processing request...")
         input_data = request.get("input", {})
         pdf_data = input_data.get("pdf_data")
         ocr_data = input_data.get("ocr_data")
@@ -109,22 +137,20 @@ def run(request):
             return {"error": "Missing PDF data."}
 
         pdf_bytes = base64.b64decode(pdf_data)
+
         if not ocr_data:
-            print("No OCR data provided. Extracting from PDF...")
-            ocr_data = extract_text_from_pdf_bytes(pdf_bytes)
+            print("No OCR data provided. Extracting...")
+            ocr_data = extract_text_from_image(pdf_bytes)
 
-        prompt = generate_detailed_prompt(ocr_data)
-        response = handle_inference(prompt, model, tokenizer)
-
-        print("Request processed successfully.")
+        prompt = generate_prompt(pdf_bytes, ocr_data)
+        response = perform_inference(prompt, model, tokenizer)
         return {"response": response}
     except Exception as e:
-        print(f"Error processing request: {e}")
         return {"error": f"Exception during processing: {e}"}
+    
+model, tokenizer = load_model_and_tokenizer()
 
-# Authenticate and Load Resources
+# Initialize and Start RunPod Handler
 if __name__ == "__main__":
-    HUGGINGFACE_TOKEN = "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"
-    authenticate_huggingface(HUGGINGFACE_TOKEN)
-    model, tokenizer = load_model_and_tokenizer("openbmb/MiniCPM-V-2_6")
+    print("Initializing...")
     runpod.serverless.start({"handler": run})
