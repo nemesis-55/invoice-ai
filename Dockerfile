@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
-RUN pip install --upgrade pip setuptools wheel packaging==23.2
+RUN pip install --upgrade pip setuptools wheel
 
 
 # Set Python3 as default
@@ -25,6 +25,8 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
     rm -rf ~/.cache/pip
+
+RUN pip install flash_attn==2.3.4
 
 
 # Copy the handler script to the container
