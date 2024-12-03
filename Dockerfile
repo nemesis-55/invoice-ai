@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 
+RUN pip install --upgrade pip setuptools wheel packaging==23.2
+
+
 # Set Python3 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
