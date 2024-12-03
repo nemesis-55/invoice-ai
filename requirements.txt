@@ -25,13 +25,9 @@ transformers==4.40.0
 typing_extensions==4.8.0
 uvicorn==0.24.0.post1
 xformers==0.0.22.post7
-flash_attn==2.3.4
 sentencepiece==0.1.99
 accelerate==0.30.1
 socksio==1.0.0
-gradio==4.41.0
-gradio_client
-http://thunlp.oss-cn-qingdao.aliyuncs.com/multi_modal/never_delete/modelscope_studio-0.4.0.9-py3-none-any.whl
 decord
 runpod
 pymupdf
