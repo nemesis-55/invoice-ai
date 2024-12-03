@@ -6,6 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV GIT_LFS_SKIP_SMUDGE=1  
 ENV CACHE_DIR_MODEL = "./cache_dir/model"
 ENV CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
+ENV ADAPTER_DIR="/app/adapter"
+
 
 # Install Python, Git, and required system dependencies
 RUN apt-get update && apt-get install -y \
@@ -29,14 +31,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
     rm -rf ~/.cache/pip
 
-# Set model and adapter paths as environment variables (optional)
-ENV ADAPTER_DIR="/app/adapter"
-
 # Create directories for models and adapters
 RUN mkdir -p ${ADAPTER_DIR} ${CACHE_DIR_MODEL} ${CACHE_DIR_ADAPTOR}
 
 # Clone the adapter repository (using Git LFS)
-RUN git clone https://huggingface.co/Zorro123444/xylem_invoice_extracter $ADAPTER_DIR && \
+RUN git clone https://huggingface.co/Zorro123444/invoice_extracter_2 $ADAPTER_DIR && \
     cd $ADAPTER_DIR && git lfs pull && \
     rm -rf /root/.cache/git-lfs
 
