@@ -16,13 +16,13 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 RUN pip install --no-cache-dir packaging setuptools wheel
 
 # Install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the handler script
-COPY handler.py .
+COPY handler.py ./
 
-# Set the working directory
-WORKDIR /
+
 
 # Set the entry point
 CMD ["python", "-u", "handler.py"]
