@@ -10,8 +10,6 @@ from huggingface_hub import login
 import fitz  # PyMuPDF
 
 # Constants
-CACHE_DIR_MODEL = "./cache_dir/model"
-CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 HUGGINGFACE_TOKEN = "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"
 
 # Hugging Face Login
@@ -24,15 +22,10 @@ def authenticate_huggingface(token):
         raise
 
 # Load Model and Tokenizer
-def load_model_and_tokenizer(model_type, adaptor_type, model_cache, adaptor_cache):
+def load_model_and_tokenizer(model_type, model_cache):
     try:
         print("Loading model and tokenizer...")
-        model = AutoModel.from_pretrained(
-            model_type, trust_remote_code=True, device_map="cuda", cache_dir=model_cache
-        )
-        model = PeftModel.from_pretrained(
-            model, adaptor_type, trust_remote_code=True, device_map="cuda", cache_dir=adaptor_cache
-        ).eval()
+        model = AutoModel.from_pretrained(model_type, trust_remote_code=True, device_map="cuda", cache_dir=model_cache).eval()
         tokenizer = AutoTokenizer.from_pretrained(model_type, trust_remote_code=True)
         print("Model and tokenizer loaded successfully.")
         return model, tokenizer
@@ -168,12 +161,11 @@ def run(request):
         print(f"Error processing request: {e}")
         return {"error": f"Exception during processing: {e}"}
 
+print("login to hugging face")
+authenticate_huggingface(HUGGINGFACE_TOKEN)
+print("Loading model")
+model, tokenizer = load_model_and_tokenizer("Zorro123444/invoice_extracter_2", "./cache_dir/model")
+
 # Authenticate and Load Resources
-if __name__ == "__main__":
-    print("Starting RunPod handler...")
-    authenticate_huggingface(HUGGINGFACE_TOKEN)
-    model, tokenizer = load_model_and_tokenizer(model_type="openbmb/MiniCPM-V-2_6", 
-                                                adaptor_type="Zorro123444/invoice_extracter_2", 
-                                                model_cache=CACHE_DIR_MODEL, 
-                                                adaptor_cache=CACHE_DIR_ADAPTOR)
+if __name__ == "__main__":    
     runpod.serverless.start({"handler": run})
