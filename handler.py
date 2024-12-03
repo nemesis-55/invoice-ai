@@ -6,6 +6,7 @@ import pytesseract
 from transformers import AutoTokenizer, AutoModel
 from peft import PeftModel
 import runpod
+from huggingface_hub import login
 
 # Constants
 MODEL_DPI = 600
@@ -19,9 +20,9 @@ def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     print("Loading model and tokenizer...")
     try:
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL)
         model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR).eval()
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("Model and tokenizer loaded successfully.")
         return model, tokenizer
     except Exception as e:
@@ -148,6 +149,8 @@ def run(request):
     except Exception as e:
         return {"error": f"Exception during processing: {e}"}
     
+# Log in with your Hugging Face token
+login("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")    
 model, tokenizer = load_model_and_tokenizer()
 
 # Initialize and Start RunPod Handler
