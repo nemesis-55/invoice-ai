@@ -1,3 +1,4 @@
+packaging
 torch
 transformers
 pillow
