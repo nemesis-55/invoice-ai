@@ -1,7 +1,5 @@
-torch
 transformers
 pillow
-torchvision
 runpod
 accelerate
 pymupdf
@@ -11,4 +9,3 @@ timm
 sentencepiece
 tensorboardX
 pytesseract
-flash_attn
