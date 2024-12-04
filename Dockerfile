@@ -21,7 +21,6 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 # Install specific Python libraries
 RUN pip install \
-    "urllib3<1.27,>=1.25.4" \
     torch \
     torchvision \
     transformers \
