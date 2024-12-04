@@ -28,11 +28,9 @@ RUN pip install \
     runpod \
     accelerate \
     pymupdf \
-    deepspeed \
     peft \
     timm \
     sentencepiece \
-    tensorboardX \
     pytesseract
 
 # Install flash_attn separately (requires CUDA toolkit)
