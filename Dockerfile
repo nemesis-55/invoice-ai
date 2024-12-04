@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 # Install Python dependencies from the requirements file
+RUN pip install packaging
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
     rm -rf ~/.cache/pip
