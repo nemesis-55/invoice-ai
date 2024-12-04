@@ -21,8 +21,8 @@ def load_model_and_tokenizer():
     print("Loading model and tokenizer...")
     try:
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-        base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL)
-        model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR).eval()
+        base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda",  attn_implementation='sdpa', cache_dir=CACHE_DIR_MODEL)
+        model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True,  attn_implementation='sdpa', cache_dir=CACHE_DIR_ADAPTOR).eval()
         print("Model and tokenizer loaded successfully.")
         return model, tokenizer
     except Exception as e:
