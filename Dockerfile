@@ -1,5 +1,5 @@
 # Base image with CUDA and cuDNN support
-FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:11.7.1-cudnn8-runtime-ubuntu20.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -21,6 +21,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 # Install specific Python libraries
 RUN pip install \
+    "urllib3<1.27,>=1.25.4" \
     torch \
     torchvision \
     transformers \
