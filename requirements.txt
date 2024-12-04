@@ -11,3 +11,4 @@ timm
 sentencepiece
 tensorboardX
 pytesseract
+flash_attn

@@ -19,30 +19,9 @@ RUN apt-get update && apt-get install -y \
 # Set Python3 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
-# Upgrade pip, setuptools, and wheel
-RUN pip install --upgrade pip setuptools wheel
-
-# Install specific Python libraries
-RUN pip install \
-    torch==2.1.2 \
-    torchvision==0.16.2 \
-    transformers==4.40.0 \
-    pillow==10.1.0 \
-    runpod \
-    accelerate==0.30.1 \
-    pymupdf \
-    deepspeed \
-    peft \
-    timm==0.9.10 \
-    sentencepiece==0.1.99 \
-    tensorboardX \
-    pytesseract
-
-# Install flash_attn separately (requires CUDA toolkit)
-RUN pip install flash_attn==2.3.4
-
-# Copy the requirements.txt for reference (optional)
 COPY requirements.txt .
+
+RUN pip install -r requirements.txt
 
 # Copy the handler script to the container
 COPY handler.py ./
