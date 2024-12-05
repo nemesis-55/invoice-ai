@@ -23,7 +23,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1
 RUN python -m pip install --upgrade pip
 
 # Install PyTorch and torchvision with CUDA support
-RUN pip install --no-cache-dir torch==2.1.2+cu117 torchvision==0.16.2+cu117 --index-url https://download.pytorch.org/whl/cu117
+RUN pip install --no-cache-dir torch==2.0.1+cu117 torchvision==0.15.2+cu117 --index-url https://download.pytorch.org/whl/cu117
 
 # Copy requirements.txt and install other dependencies
 COPY requirements.txt .
