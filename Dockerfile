@@ -22,12 +22,16 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1
 # Upgrade pip to the latest version
 RUN python -m pip install --upgrade pip
 
+RUN pin install packaging
+
 # Install PyTorch and torchvision with CUDA support
 RUN pip install --no-cache-dir torch==2.0.1+cu117 torchvision==0.15.2+cu117 --index-url https://download.pytorch.org/whl/cu117
 
 # Copy requirements.txt and install other dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+RUN pip install flash_attn
 
 # Copy the handler script to the container
 COPY handler.py ./
