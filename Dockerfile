@@ -4,6 +4,7 @@ FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu20.04
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
+ENV CUDA_HOME=/usr/local/cuda
 
 # Install system dependencies and Python 3.9
 RUN apt-get update && apt-get install -y \
@@ -25,13 +26,11 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1
 # Upgrade pip to the latest version
 RUN python -m pip install --upgrade pip
 
-RUN pip install packaging
-
 # Install PyTorch and torchvision with CUDA support
 RUN pip install --no-cache-dir torch==2.0.1+cu117 torchvision==0.15.2+cu117 --index-url https://download.pytorch.org/whl/cu117
 
-# Install flash_attn (this now works because the build tools and CUDA development toolkit are available)
-RUN pip install flash_attn
+# Install Flash Attention with verbose output for debugging
+RUN pip install --verbose flash_attn
 
 # Copy requirements.txt and install other dependencies
 COPY requirements.txt .
