@@ -28,9 +28,9 @@ handler = PrintAndLogHandler()
 logger.addHandler(handler)
 
 # Install flash-attn
-# logger.info("Installing flash-attn...")
-# subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
-# logger.info("flash-attn installed successfully.")
+logger.info("Installing flash-attn...")
+subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
+logger.info("flash-attn installed successfully.")
 
 
 # Constants
@@ -52,7 +52,7 @@ def load_model_and_tokenizer():
         logging.info(f"Loading model from {MODEL_TYPE}...")
         model =  AutoModel.from_pretrained(
                 ADAPTOR_TYPE,
-                device_map="cuda",
+                device_map="auto",
                 trust_remote_code=True,
                 cache_dir=CACHE_DIR_MODEL
                 ).cuda().eval()
