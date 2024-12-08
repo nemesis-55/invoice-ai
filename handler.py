@@ -19,17 +19,17 @@ CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     print("Loading model and tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-    print("Loaded tokenizer")
-    base_model = AutoModel.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True,  attn_implementation='sdpa', cache_dir=CACHE_DIR_MODEL)
-    print("loaded base model")
-    # base_model = base_model.eval().cuda()
-    # print("base model shifted to cuda")
-    # print("loading adaptor")
-    # model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, trust_remote_code=True,  attn_implementation='sdpa', cache_dir=CACHE_DIR_ADAPTOR)
-    model = base_model.eval().cuda()
-    print("Model and tokenizer loaded successfully.")
-    return model, tokenizer
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+        print("loading model")
+        base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL).eval()
+        print("loading adaptor")
+
+        model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR).eval()
+        print("Model and tokenizer loaded successfully.")
+        return model, tokenizer
+    except Exception as e:
+        raise RuntimeError(f"Error loading model or tokenizer: {e}")
 
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
@@ -160,5 +160,3 @@ model, tokenizer = load_model_and_tokenizer()
 if __name__ == "__main__":
     print("Initializing...")
     runpod.serverless.start({"handler": run})
-
-
