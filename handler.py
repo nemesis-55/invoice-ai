@@ -7,12 +7,15 @@ from transformers import AutoTokenizer, AutoModel
 from peft import PeftModel
 import runpod
 from huggingface_hub import login
-import os, subprocess
+import os
+import subprocess
+import logging
 
-print("installing flash_attn")
-subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
-print("installed flash-attn")
+# Set up logging to write to a file
+logging.basicConfig(filename='handler.log', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
+logging.info("Starting script execution.")
 
 # Constants
 MODEL_DPI = 600
@@ -24,48 +27,60 @@ CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
-    print("Loading model and tokenizer...")
+    logging.info("Loading model and tokenizer...")
     try:
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-        print("loading model")
+        logging.info("Tokenizer loaded.")
+        
+        # Log the loading process of the base model
+        logging.info(f"Loading model from {MODEL_TYPE}...")
         base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL).eval()
-        print("loading adaptor")
-        # model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR).eval()
-        print("Model and tokenizer loaded successfully.")
-        return base_model, tokenizer
+        logging.info("Base model loaded successfully.")
+        
+        # Log the loading process of the adaptor
+        logging.info(f"Loading adapter from {ADAPTOR_TYPE}...")
+        model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR).eval()
+        logging.info("Model and adapter loaded successfully.")
+        
+        return model, tokenizer
     except Exception as e:
+        logging.error(f"Error loading model or tokenizer: {e}")
         raise RuntimeError(f"Error loading model or tokenizer: {e}")
 
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
     try:
+        logging.info("Converting PDF to image...")
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
         if len(pdf_document) < 1:
             raise ValueError("The PDF does not contain any pages.")
         page = pdf_document.load_page(0)
         pix = page.get_pixmap(dpi=dpi)
+        logging.info("PDF converted to image.")
         return Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
     except Exception as e:
+        logging.error(f"Error converting PDF to image: {e}")
         raise ValueError(f"Error converting PDF to image: {e}")
 
 # Extract Text using OCR
 def extract_text_from_image(pdf_bytes, dpi=MODEL_DPI):
     """Extract text from an image derived from the PDF."""
-    print("Extracting text from PDF...")
+    logging.info("Extracting text from image...")
     try:
         image = pdf_to_image(pdf_bytes, dpi)
         text = pytesseract.image_to_string(image)
-        print(f"Extracted text length: {len(text)} characters.")
+        logging.info(f"Extracted text length: {len(text)} characters.")
         return text
     except Exception as e:
+        logging.error(f"Error during text extraction: {e}")
         raise RuntimeError(f"Error during text extraction: {e}")
 
 # Generate Detailed Prompt
 def generate_prompt(pdf_bytes, ocr_data):
     """Create the detailed prompt for the model."""
+    logging.info("Generating prompt...")
     try:
-        print("Generating prompt...")
         image = pdf_to_image(pdf_bytes)
         question = (
             "You are an AI model specialized in data extraction from invoices. "
@@ -79,7 +94,6 @@ def generate_prompt(pdf_bytes, ocr_data):
             "4. Maintain the exact formatting of numeric values and dates as found in the input.\n"
             "5. Do not include additional explanations or comments in your output.\n\n"
             "### JSON Structure:\n"
-            "The JSON structure must match the following format exactly:\n"
             "{\n"
             "    \"OrderNumber\": \"<string>\",\n"
             "    \"InvoiceNumber\": \"<string>\",\n"
@@ -120,41 +134,46 @@ def generate_prompt(pdf_bytes, ocr_data):
         
         return [{"role": "user", "content": [image, question]}]
     except Exception as e:
+        logging.error(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
 def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
-    print("Performing inference...")
+    logging.info("Performing inference...")
     try:
         with torch.no_grad():
             response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+        logging.info("Inference completed successfully.")
         return response
     except Exception as e:
+        logging.error(f"Inference failed: {e}")
         raise RuntimeError(f"Inference failed: {e}")
 
 # Main Request Handler
 def run(request):
     """Process incoming requests."""
-    print("Processing request...")
+    logging.info("Processing request...")
     try:
         input_data = request.get("input", {})
         pdf_data = input_data.get("pdf_data")
         ocr_data = input_data.get("ocr_data")
 
         if not pdf_data:
+            logging.error("Missing PDF data.")
             return {"error": "Missing PDF data."}
 
         pdf_bytes = base64.b64decode(pdf_data)
 
         if not ocr_data:
-            print("No OCR data provided. Extracting...")
+            logging.info("No OCR data provided. Extracting...")
             ocr_data = extract_text_from_image(pdf_bytes)
 
         prompt = generate_prompt(pdf_bytes, ocr_data)
         response = perform_inference(prompt, model, tokenizer)
         return {"response": response}
     except Exception as e:
+        logging.error(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
     
 # Log in with your Hugging Face token
@@ -163,5 +182,5 @@ model, tokenizer = load_model_and_tokenizer()
 
 # Initialize and Start RunPod Handler
 if __name__ == "__main__":
-    print("Initializing...")
+    logging.info("Initializing RunPod serverless handler.")
     runpod.serverless.start({"handler": run})
