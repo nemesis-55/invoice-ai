@@ -4,7 +4,7 @@ from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
 import pytesseract
 from transformers import AutoTokenizer, AutoModel
-from peft import PeftModel
+from peft import AutoPeftModel
 import runpod
 from huggingface_hub import login
 import os
@@ -50,22 +50,17 @@ def load_model_and_tokenizer():
         
         # Log the loading process of the base model
         logging.info(f"Loading model from {MODEL_TYPE}...")
-        model =  AutoModel.from_pretrained(
-                MODEL_TYPE,
-                device_map="auto",
-                trust_remote_code=True, torch_dtype=torch.bfloat16
-                )
-        logging.info("Base Model loaded successfully")
-        lora_model = PeftModel.from_pretrained(
-            model,
+        model = AutoPeftModel.from_pretrained(
+            MODEL_TYPE,
             ADAPTOR_TYPE,
             device_map="auto",
             trust_remote_code=True,
-            cache_dir=CACHE_DIR_MODEL, torch_dtype=torch.bfloat16
+            torch_dtype=torch.bfloat16,
+            cache_dir=CACHE_DIR_MODEL
         ).eval().cuda()
         logging.info("Model and adapter loaded successfully.")
         
-        return lora_model, tokenizer
+        return model, tokenizer
     except Exception as e:
         logging.error(f"Model or adapter loading failed with error: {str(e)}")
         logging.error("Full traceback:")
