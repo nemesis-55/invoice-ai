@@ -28,9 +28,9 @@ handler = PrintAndLogHandler()
 logger.addHandler(handler)
 
 # Install flash-attn
-logger.info("Installing flash-attn...")
-subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
-logger.info("flash-attn installed successfully.")
+# logger.info("Installing flash-attn...")
+# subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
+# logger.info("flash-attn installed successfully.")
 
 
 # Constants
@@ -52,7 +52,7 @@ def load_model_and_tokenizer():
         logging.info(f"Loading model from {MODEL_TYPE}...")
         model =  AutoModel.from_pretrained(
                 ADAPTOR_TYPE,
-                device_map="auto",
+                device_map="cuda",
                 trust_remote_code=True,
                 cache_dir=CACHE_DIR_MODEL
                 ).eval().cuda()
@@ -70,7 +70,7 @@ def load_model_and_tokenizer():
         logging.error(f"Model or adapter loading failed with error: {str(e)}")
         logging.error("Full traceback:")
         logging.error(traceback.format_exc())
-        
+
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
