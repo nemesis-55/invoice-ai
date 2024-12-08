@@ -4,9 +4,8 @@ torchvision
 transformers
 sentencepiece
 decord
-peft==0.5.0
+peft
 pytesseract
 huggingface-hub
-pydantic==2.0.0
 runpod
 pymupdf
