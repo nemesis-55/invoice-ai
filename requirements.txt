@@ -11,3 +11,5 @@ huggingface-hub
 pydantic
 runpod
 pymupdf
+frontend
+numpy==1.26.4
