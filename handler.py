@@ -55,7 +55,7 @@ def load_model_and_tokenizer():
                 device_map="cuda",
                 trust_remote_code=True,
                 cache_dir=CACHE_DIR_MODEL
-                ).eval().cuda()
+                ).cuda().eval()
 
         # lora_model = PeftModel.from_pretrained(
         #     model,
