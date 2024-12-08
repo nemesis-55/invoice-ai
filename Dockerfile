@@ -1,5 +1,5 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use the RunPod PyTorch image with CUDA as the base image
+FROM runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
 
 # Set the working directory in the container
 WORKDIR /app
