@@ -7,6 +7,12 @@ from transformers import AutoTokenizer, AutoModel
 from peft import PeftModel
 import runpod
 from huggingface_hub import login
+import os, subprocess
+
+print("installing flash_attn")
+subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
+print("installed flash-attn")
+
 
 # Constants
 MODEL_DPI = 600
@@ -24,7 +30,6 @@ def load_model_and_tokenizer():
         print("loading model")
         base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", cache_dir=CACHE_DIR_MODEL).eval()
         print("loading adaptor")
-
         model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True, cache_dir=CACHE_DIR_ADAPTOR).eval()
         print("Model and tokenizer loaded successfully.")
         return model, tokenizer
