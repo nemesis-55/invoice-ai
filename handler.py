@@ -51,23 +51,26 @@ def load_model_and_tokenizer():
         # Log the loading process of the base model
         logging.info(f"Loading model from {MODEL_TYPE}...")
         model =  AutoModel.from_pretrained(
-                MODEL_TYPE,
-                trust_remote_code=True
-                )
+                ADAPTOR_TYPE,
+                device_map="auto",
+                trust_remote_code=True,
+                cache_dir=CACHE_DIR_MODEL
+                ).eval().cuda()
 
-        lora_model = PeftModel.from_pretrained(
-            model,
-            ADAPTOR_TYPE,
-            device_map="auto",
-            trust_remote_code=True
-        ).eval().cuda()
+        # lora_model = PeftModel.from_pretrained(
+        #     model,
+        #     ADAPTOR_TYPE,
+        #     device_map="auto",
+        #     trust_remote_code=True
+        # ).eval().cuda() 
         logging.info("Model and adapter loaded successfully.")
         
-        return lora_model, tokenizer
+        return model, tokenizer
     except Exception as e:
         logging.error(f"Model or adapter loading failed with error: {str(e)}")
         logging.error("Full traceback:")
         logging.error(traceback.format_exc())
+        
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
