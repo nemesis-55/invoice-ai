@@ -19,18 +19,17 @@ CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     print("Loading model and tokenizer...")
-    try:
-        model = AutoModel.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, attn_implementation='sdpa', torch_dtype=torch.bfloat16, cache_dir=CACHE_DIR_MODEL) # sdpa or flash_attention_2, no eager
-        model = model.eval().cuda()
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-
-        # tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-        # base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda",  attn_implementation='sdpa', cache_dir=CACHE_DIR_MODEL)
-        # model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True,  attn_implementation='sdpa', cache_dir=CACHE_DIR_ADAPTOR).eval()
-        print("Model and tokenizer loaded successfully.")
-        return model, tokenizer
-    except Exception as e:
-        raise RuntimeError(f"Error loading model or tokenizer: {e}")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+    print("Loaded tokenizer")
+    base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True,  attn_implementation='sdpa', cache_dir=CACHE_DIR_MODEL)
+    print("loaded base model")
+    base_model = base_model.eval().cuda()
+    print("base model shifted to cuda")
+    print("loading adaptor")
+    model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, trust_remote_code=True,  attn_implementation='sdpa', cache_dir=CACHE_DIR_ADAPTOR)
+    model = model.eval().cuda()
+    print("Model and tokenizer loaded successfully.")
+    return model, tokenizer
 
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
