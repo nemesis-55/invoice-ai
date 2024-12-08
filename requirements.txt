@@ -9,3 +9,4 @@ fitz
 pytesseract
 huggingface-hub
 pydantic
+runpod

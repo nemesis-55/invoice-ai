@@ -5,10 +5,8 @@ import fitz  # PyMuPDF for handling PDFs
 import pytesseract
 from transformers import AutoTokenizer, AutoModel
 from peft import PeftModel
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+import runpod
 from huggingface_hub import login
-import io
 
 # Constants
 MODEL_DPI = 600
@@ -17,53 +15,47 @@ ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
 CACHE_DIR_MODEL = "./cache_dir/model"
 CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 
-# Initialize FastAPI app
-app = FastAPI()
-
-# Define request and response schemas
-class RequestData(BaseModel):
-    pdf_data: str
-    ocr_data: str = None
-
-class ResponseData(BaseModel):
-    response: dict
-
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
-    """Load the fine-tuned model and tokenizer."""
+    """Load the main model and tokenizer."""
     print("Loading model and tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-    base_model = AutoModel.from_pretrained(
-        MODEL_TYPE,
-        trust_remote_code=True,
-        device_map="auto",
-        attn_implementation="sdpa",
-        cache_dir=CACHE_DIR_MODEL,
-    )
-    model = PeftModel.from_pretrained(
-        base_model,
-        ADAPTOR_TYPE,
-        trust_remote_code=True,
-        cache_dir=CACHE_DIR_ADAPTOR,
-    ).eval()
-    print("Model and tokenizer loaded successfully.")
-    return model, tokenizer
+    try:
+        model = AutoModel.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, device_map="auto", attn_implementation='sdpa', torch_dtype=torch.bfloat16, cache_dir=CACHE_DIR_MODEL) # sdpa or flash_attention_2, no eager
+        model = model.eval().cuda()
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+
+        # tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+        # base_model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda",  attn_implementation='sdpa', cache_dir=CACHE_DIR_MODEL)
+        # model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, device_map="cuda", trust_remote_code=True,  attn_implementation='sdpa', cache_dir=CACHE_DIR_ADAPTOR).eval()
+        print("Model and tokenizer loaded successfully.")
+        return model, tokenizer
+    except Exception as e:
+        raise RuntimeError(f"Error loading model or tokenizer: {e}")
 
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
-    """Convert a PDF page to an image."""
-    pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
-    if len(pdf_document) < 1:
-        raise ValueError("The PDF does not contain any pages.")
-    page = pdf_document.load_page(0)
-    pix = page.get_pixmap(dpi=dpi)
-    return Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    """Convert a single-page PDF to an image."""
+    try:
+        pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        if len(pdf_document) < 1:
+            raise ValueError("The PDF does not contain any pages.")
+        page = pdf_document.load_page(0)
+        pix = page.get_pixmap(dpi=dpi)
+        return Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    except Exception as e:
+        raise ValueError(f"Error converting PDF to image: {e}")
 
 # Extract Text using OCR
 def extract_text_from_image(pdf_bytes, dpi=MODEL_DPI):
-    """Extract text from an image derived from a PDF."""
-    image = pdf_to_image(pdf_bytes, dpi)
-    return pytesseract.image_to_string(image)
+    """Extract text from an image derived from the PDF."""
+    print("Extracting text from PDF...")
+    try:
+        image = pdf_to_image(pdf_bytes, dpi)
+        text = pytesseract.image_to_string(image)
+        print(f"Extracted text length: {len(text)} characters.")
+        return text
+    except Exception as e:
+        raise RuntimeError(f"Error during text extraction: {e}")
 
 # Generate Detailed Prompt
 def generate_prompt(pdf_bytes, ocr_data):
@@ -126,52 +118,48 @@ def generate_prompt(pdf_bytes, ocr_data):
     except Exception as e:
         raise RuntimeError(f"Error generating prompt: {e}")
 
-
-# Perform Inference
+# Handle Inference
 def perform_inference(messages, model, tokenizer):
-    """Run inference using the model."""
+    """Perform model inference."""
     print("Performing inference...")
-    with torch.no_grad():
-        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
-    return response
-
-# FastAPI POST Endpoint to handle the PDF processing
-@app.post("/generate", response_model=ResponseData)
-async def generate_invoice_data(request: RequestData):
-    """Process incoming requests and generate structured invoice data."""
     try:
-        pdf_data = request.pdf_data
-        ocr_data = request.ocr_data
+        with torch.no_grad():
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+        return response
+    except Exception as e:
+        raise RuntimeError(f"Inference failed: {e}")
+
+# Main Request Handler
+def run(request):
+    """Process incoming requests."""
+    print("Processing request...")
+    try:
+        input_data = request.get("input", {})
+        pdf_data = input_data.get("pdf_data")
+        ocr_data = input_data.get("ocr_data")
 
         if not pdf_data:
-            raise HTTPException(status_code=400, detail="Missing PDF data.")
+            return {"error": "Missing PDF data."}
 
         pdf_bytes = base64.b64decode(pdf_data)
 
-        # Extract OCR data if not provided
         if not ocr_data:
-            print("No OCR data provided. Extracting from PDF...")
+            print("No OCR data provided. Extracting...")
             ocr_data = extract_text_from_image(pdf_bytes)
 
-        # Generate prompt and perform inference
         prompt = generate_prompt(pdf_bytes, ocr_data)
         response = perform_inference(prompt, model, tokenizer)
-
         return {"response": response}
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error during processing: {str(e)}")
+        return {"error": f"Exception during processing: {e}"}
+    
+# Log in with your Hugging Face token
+login("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")    
+model, tokenizer = load_model_and_tokenizer()
 
-# Model Initialization (on container startup)
-def initialize_model():
-    """Load the model and tokenizer when the container starts."""
-    login("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")  # Replace with your Hugging Face token
-    global model, tokenizer
-    model, tokenizer = load_model_and_tokenizer()
-
-# Initialize model on container start
-initialize_model()
-
+# Initialize and Start RunPod Handler
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    print("Initializing...")
+    runpod.serverless.start({"handler": run})
+
+
