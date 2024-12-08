@@ -7,6 +7,6 @@ decord
 peft
 pytesseract
 huggingface-hub
-pydantic
+pydantic==2.0.0
 runpod
 pymupdf
