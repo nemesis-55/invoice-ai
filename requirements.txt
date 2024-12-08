@@ -10,4 +10,3 @@ huggingface-hub
 pydantic
 runpod
 pymupdf
-numpy==1.26.4
