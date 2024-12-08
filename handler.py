@@ -4,7 +4,7 @@ from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
 import pytesseract
 from transformers import AutoTokenizer, AutoModel
-from peft import AutoPeftModel
+from peft import PeftModel
 import runpod
 from huggingface_hub import login
 import os
@@ -28,9 +28,9 @@ handler = PrintAndLogHandler()
 logger.addHandler(handler)
 
 # Install flash-attn
-logger.info("Installing flash-attn...")
-subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
-logger.info("flash-attn installed successfully.")
+# logger.info("Installing flash-attn...")
+# subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
+# logger.info("flash-attn installed successfully.")
 
 
 # Constants
@@ -50,8 +50,7 @@ def load_model_and_tokenizer():
         
         # Log the loading process of the base model
         logging.info(f"Loading model from {MODEL_TYPE}...")
-        model = AutoPeftModel.from_pretrained(
-            MODEL_TYPE,
+        model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
             device_map="auto",
             trust_remote_code=True,
