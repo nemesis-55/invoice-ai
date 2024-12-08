@@ -28,9 +28,9 @@ handler = PrintAndLogHandler()
 logger.addHandler(handler)
 
 # Install flash-attn
-# logger.info("Installing flash-attn...")
-# subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
-# logger.info("flash-attn installed successfully.")
+logger.info("Installing flash-attn...")
+subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
+logger.info("flash-attn installed successfully.")
 
 
 # Constants
