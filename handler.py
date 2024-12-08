@@ -20,7 +20,7 @@ def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     print("Loading model and tokenizer...")
     try:
-        model = AutoModel.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, device_map="auto", attn_implementation='sdpa', torch_dtype=torch.bfloat16, cache_dir=CACHE_DIR_MODEL) # sdpa or flash_attention_2, no eager
+        model = AutoModel.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, attn_implementation='sdpa', torch_dtype=torch.bfloat16, cache_dir=CACHE_DIR_MODEL) # sdpa or flash_attention_2, no eager
         model = model.eval().cuda()
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
 
