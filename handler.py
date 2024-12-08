@@ -11,11 +11,26 @@ import os
 import subprocess
 import logging
 
-# Set up logging to write to a file
-logging.basicConfig(filename='handler.log', level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-logging.info("Starting script execution.")
+# Custom logging handler to print and log to a file
+class PrintAndLogHandler(logging.Handler):
+    def emit(self, record):
+        log_message = self.format(record)
+        print(log_message)  # Print to console
+        with open('handler.log', 'a') as log_file:  # Log to a file
+            log_file.write(log_message + '\n')
+
+# Set up logging to both console and file
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+handler = PrintAndLogHandler()
+logger.addHandler(handler)
+
+# Install flash-attn
+logger.info("Installing flash-attn...")
+subprocess.check_call([os.sys.executable, "-m", "pip", "install", "flash-attn"])
+logger.info("flash-attn installed successfully.")
+
 
 # Constants
 MODEL_DPI = 600
