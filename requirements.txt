@@ -10,3 +10,4 @@ pytesseract
 huggingface-hub
 pydantic
 runpod
+pymupdf
