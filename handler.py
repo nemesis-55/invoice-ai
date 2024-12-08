@@ -10,6 +10,7 @@ from huggingface_hub import login
 import os
 import subprocess
 import logging
+import traceback
 
 
 # Custom logging handler to print and log to a file
@@ -64,9 +65,9 @@ def load_model_and_tokenizer():
         
         return lora_model, tokenizer
     except Exception as e:
-        logging.error(f"Error loading model or tokenizer: {e}")
-        raise RuntimeError(f"Error loading model or tokenizer: {e}")
-
+        logging.error(f"Model or adapter loading failed with error: {str(e)}")
+        logging.error("Full traceback:")
+        logging.error(traceback.format_exc())
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
