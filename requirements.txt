@@ -5,11 +5,9 @@ transformers==4.40.0
 sentencepiece==0.1.99
 decord
 peft
-fitz
 pytesseract
 huggingface-hub
 pydantic
 runpod
 pymupdf
-frontend
 numpy==1.26.4
