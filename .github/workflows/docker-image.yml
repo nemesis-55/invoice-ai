@@ -26,7 +26,7 @@ jobs:
       id: build
       run: |
         TIMESTAMP=$(date +%s)
-        docker build . --file Dockerfile --tag invoice-ai:$TIMESTAMP
+        docker build . --file Dockerfile --tag invoice-ai:$TIMESTAMP --memory=30g
         echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
     - name: Tag Docker image
