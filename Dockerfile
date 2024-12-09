@@ -19,15 +19,15 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Environment variable for Hugging Face token
+# Set up Hugging Face authentication
 ENV HF_TOKEN="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"
 
-# Clone the model and adapter repositories using Git LFS and Hugging Face token
 RUN git lfs install && \
-    git clone https://$HF_TOKEN@huggingface.co/openbmb/MiniCPM-V-2_6 /models/MiniCPM-V-2_6 && \
-    cd /models/MiniCPM-V-2_6 && git pull
-
-RUN git clone https://$HF_TOKEN@huggingface.co/Zorro123444/invoice_extracter_2 /adaptors/invoice_extracter_2 && \
+    git config --global credential.helper store && \
+    echo "https://huggingface.co=$HF_TOKEN" > ~/.git-credentials && \
+    git clone https://huggingface.co/openbmb/MiniCPM-V-2_6 /models/MiniCPM-V-2_6 && \
+    cd /models/MiniCPM-V-2_6 && git pull && \
+    git clone https://huggingface.co/Zorro123444/invoice_extracter_2 /adaptors/invoice_extracter_2 && \
     cd /adaptors/invoice_extracter_2 && git pull
 
 # Copy the handler.py file into the container
