@@ -4,35 +4,23 @@ from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
 import pytesseract
 from transformers import AutoTokenizer, AutoModel
-from peft import PeftModel
 import runpod
 from huggingface_hub import login
-import traceback
 
 # Constants
 MODEL_DPI = 600
-MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
-CACHE_DIR_MODEL = "./cache_dir/model"
-CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
+MODEL_TYPE = "./model/invoice-ai-2_6"
 
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-        print("Tokenizer loaded.")
-        
-        model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16)
-        print("Base Model loaded successfully.")
-        
-        lora_model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="cuda", torch_dtype=torch.bfloat16, trust_remote_code=True, cache_dir=CACHE_DIR_MODEL).eval()
-        print("Model and adapter loaded successfully.")
-        
-        return lora_model, tokenizer
+        # Log the loading process of the base model
+        model =  AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, torch_dtype=torch.bfloat16).eval().cuda()
+        return model, tokenizer
     except Exception as e:
-        print(f"Error loading model or adapter: {str(e)}")
-        print(traceback.format_exc())
+        print(f"exception: {e}")
 
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
