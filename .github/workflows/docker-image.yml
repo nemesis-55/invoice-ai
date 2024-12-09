@@ -26,13 +26,13 @@ jobs:
       id: build
       run: |
         TIMESTAMP=$(date +%s)
-        docker build . --file Dockerfile --tag mincpm-llama3-v2_5:$TIMESTAMP
+        docker build . --file Dockerfile --tag miniCPM-V-2_6:$TIMESTAMP
         echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
     - name: Tag Docker image
       run: |
-        docker tag mincpm-llama3-v2_5:$TIMESTAMP nemesis55/mincpm-llama3-v2_5:latest
+        docker tag miniCPM-V-2_6:$TIMESTAMP nemesis55/miniCPM-V-2_6:latest
 
     - name: Push Docker image to Docker Hub
       run: |
-        docker push nemesis55/mincpm-llama3-v2_5:latest
+        docker push nemesis55/miniCPM-V-2_6:latest
