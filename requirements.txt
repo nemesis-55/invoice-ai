@@ -5,7 +5,6 @@ transformers
 sentencepiece
 decord
 pytesseract
-huggingface-hub
 runpod
 pymupdf
 flash-attn

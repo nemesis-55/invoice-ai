@@ -5,7 +5,6 @@ import fitz  # PyMuPDF for handling PDFs
 import pytesseract
 from transformers import AutoTokenizer, AutoModel
 import runpod
-from huggingface_hub import login
 
 # Constants
 MODEL_DPI = 600
@@ -143,8 +142,6 @@ def run(request):
         print(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
 
-# Log in with your Hugging Face token
-login("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")    
 model, tokenizer = load_model_and_tokenizer()
 
 # Initialize and Start RunPod Handler
