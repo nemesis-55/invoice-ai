@@ -25,7 +25,7 @@ def load_model_and_tokenizer():
         # Log the loading process of the base model
         base_model =  AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache_dir)
         peft_model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, torch_dtype=torch.bfloat16, trust_remote_code=True, cache_dir=cache_dir).eval().cuda()
-        return model, tokenizer
+        return peft_model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
 
