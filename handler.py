@@ -23,10 +23,10 @@ def load_model_and_tokenizer():
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("Tokenizer loaded.")
         
-        model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+        model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, device_map="cuda", torch_dtype=torch.bfloat16)
         print("Base Model loaded successfully.")
         
-        lora_model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="auto", trust_remote_code=True, cache_dir=CACHE_DIR_MODEL).cuda().eval()
+        lora_model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="cuda", torch_dtype=torch.bfloat16, trust_remote_code=True, cache_dir=CACHE_DIR_MODEL).eval()
         print("Model and adapter loaded successfully.")
         
         return lora_model, tokenizer
