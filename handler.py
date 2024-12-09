@@ -5,18 +5,24 @@ import fitz  # PyMuPDF for handling PDFs
 import pytesseract
 from transformers import AutoTokenizer, AutoModel
 import runpod
+from huggingface_hub import login
 
 # Constants
 MODEL_DPI = 600
-MODEL_TYPE = "./model/invoice-ai-2_6"
+MODEL_TYPE = "Zorro123444/invoice-ai-2_6-0.1"
+cache_dir = "./cache/model"
+print("login to hugging face")
+login("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")
 
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
+        print("loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+        print("loading model")
         # Log the loading process of the base model
-        model =  AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, torch_dtype=torch.bfloat16).eval().cuda()
+        model =  AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache_dir).eval().cuda()
         return model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
