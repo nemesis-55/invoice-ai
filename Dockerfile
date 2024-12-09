@@ -4,7 +4,7 @@ FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 # Set the working directory in the container
 WORKDIR /
 
-# Install system dependencies and Git LFS in one step to reduce layers
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libsm6 \
@@ -13,15 +13,18 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libmagic1 \
     git-lfs \
-    && rm -rf /var/lib/apt/lists/* \
-    && git lfs install
+    && rm -rf /var/lib/apt/lists/*
 
-# Clone repositories with authentication in a single step (avoiding temporary scripts)
-RUN echo "https://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@huggingface.co" > ~/.git-credentials && \
-    git config --global credential.helper store && \
-    git clone https://huggingface.co/openbmb/MiniCPM-V-2_6 /models/MiniCPM-V-2_6 && \
-    cd /models/MiniCPM-V-2_6 && git pull && \
-    git clone https://huggingface.co/Zorro123444/invoice_extracter_2 /adaptors/invoice_extracter_2 && \
+# Install Git LFS
+RUN git lfs install
+
+# Create the authentication script for Git
+RUN echo '#!/bin/bash' > /tmp/hf_token.sh && \
+    echo 'echo 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' >> /tmp/hf_token.sh && \
+    chmod +x /tmp/hf_token.sh
+
+# Clone repositories using GIT_ASKPASS
+RUN git clone https://huggingface.co/Zorro123444/invoice_extracter_2 /adaptors/invoice_extracter_2 && \
     cd /adaptors/invoice_extracter_2 && git pull
 
 # Install Python dependencies
