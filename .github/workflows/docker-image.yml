@@ -26,13 +26,13 @@ jobs:
       id: build
       run: |
         TIMESTAMP=$(date +%s)
-        docker build . --file Dockerfile --tag miniCPM-V-2_6:$TIMESTAMP
+        docker build . --file Dockerfile --tag invoice-ai:$TIMESTAMP
         echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
 
     - name: Tag Docker image
       run: |
-        docker tag miniCPM-V-2_6:$TIMESTAMP nemesis55/miniCPM-V-2_6:latest
+        docker tag invoice-ai:$TIMESTAMP nemesis55/invoice-ai:latest
 
     - name: Push Docker image to Docker Hub
       run: |
-        docker push nemesis55/miniCPM-V-2_6:latest
+        docker push nemesis55/invoice-ai:latest
