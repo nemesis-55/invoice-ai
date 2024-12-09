@@ -11,20 +11,22 @@ import traceback
 
 # Constants
 MODEL_DPI = 600
-MODEL_PATH = "/models/MiniCPM-V-2_6"
-ADAPTOR_PATH = "/adaptors/invoice_extracter_2"
+MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
+ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
+CACHE_DIR_MODEL = "./cache_dir/model"
+CACHE_DIR_ADAPTOR = "./cache_dir/adaptor"
 
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
-        tokenizer = AutoTokenizer.from_pretrained("openbmb/MiniCPM-V-2_6", trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("Tokenizer loaded.")
         
-        model = AutoModel.from_pretrained(MODEL_PATH, trust_remote_code=True)
+        model = AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("Base Model loaded successfully.")
         
-        lora_model = PeftModel.from_pretrained(model, ADAPTOR_PATH, device_map="auto", trust_remote_code=True).cuda().eval()
+        lora_model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="auto", trust_remote_code=True, cache_dir=CACHE_DIR_MODEL).cuda().eval()
         print("Model and adapter loaded successfully.")
         
         return lora_model, tokenizer

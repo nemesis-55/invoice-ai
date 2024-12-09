@@ -4,7 +4,7 @@ FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 # Set the working directory in the container
 WORKDIR /
 
-# Install system dependencies
+# Install system dependencies (needed for some libraries like pytesseract, fitz)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libsm6 \
@@ -12,20 +12,7 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     tesseract-ocr \
     libmagic1 \
-    git-lfs \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Git LFS
-RUN git lfs install
-
-# Create the authentication script for Git
-RUN echo '#!/bin/bash' > /tmp/hf_token.sh && \
-    echo 'echo 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' >> /tmp/hf_token.sh && \
-    chmod +x /tmp/hf_token.sh
-
-# Clone repositories using GIT_ASKPASS
-RUN git clone https://huggingface.co/Zorro123444/invoice_extracter_2 /adaptors/invoice_extracter_2 && \
-    cd /adaptors/invoice_extracter_2 && git pull
 
 # Install Python dependencies
 COPY requirements.txt ./
@@ -34,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the handler.py file into the container
 COPY handler.py .
 
-# Expose port for the API
+# Expose port for the API (if you run a local server, typically 8000)
 EXPOSE 8000
 
 # Run the application
