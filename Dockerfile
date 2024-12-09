@@ -15,20 +15,21 @@ RUN apt-get update && apt-get install -y \
     git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
+# Set up Git LFS
+RUN git lfs install
+
+# Create GIT_ASKPASS script for authentication
+RUN echo "#!/bin/bash\nexec echo \"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\"" > /tmp/hf_token.sh && chmod +x /tmp/hf_token.sh
+
+# Clone the Hugging Face model and adapter using the embedded token
+RUN GIT_ASKPASS=/tmp/hf_token.sh git clone https://huggingface.co/openbmb/MiniCPM-V-2_6 /models/MiniCPM-V-2_6 && \
+    cd /models/MiniCPM-V-2_6 && git pull && \
+    GIT_ASKPASS=/tmp/hf_token.sh git clone https://huggingface.co/Zorro123444/invoice_extracter_2 /adaptors/invoice_extracter_2 && \
+    cd /adaptors/invoice_extracter_2 && git pull
+
 # Install Python dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Set up Hugging Face authentication
-ENV HF_TOKEN="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"
-
-RUN git lfs install && \
-    git config --global credential.helper store && \
-    echo "https://huggingface.co=$HF_TOKEN" > ~/.git-credentials && \
-    git clone https://huggingface.co/openbmb/MiniCPM-V-2_6 /models/MiniCPM-V-2_6 && \
-    cd /models/MiniCPM-V-2_6 && git pull && \
-    git clone https://huggingface.co/Zorro123444/invoice_extracter_2 /adaptors/invoice_extracter_2 && \
-    cd /adaptors/invoice_extracter_2 && git pull
 
 # Copy the handler.py file into the container
 COPY handler.py .
