@@ -9,3 +9,4 @@ runpod
 pymupdf
 flash-attn
 huggingface_hub
+peft
