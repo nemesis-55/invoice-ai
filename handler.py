@@ -52,7 +52,7 @@ def load_model_and_tokenizer():
         logging.info(f"Loading model from {MODEL_TYPE}...")
         model =  AutoModel.from_pretrained(
                 MODEL_TYPE,
-                trust_remote_code=True, torch_dtype=torch.bfloat16
+                trust_remote_code=True
                 )
         logging.info("Base Model loaded successfully")
         lora_model = PeftModel.from_pretrained(
@@ -60,7 +60,7 @@ def load_model_and_tokenizer():
             ADAPTOR_TYPE,
             device_map="auto",
             trust_remote_code=True,
-            cache_dir=CACHE_DIR_MODEL, torch_dtype=torch.bfloat16
+            cache_dir=CACHE_DIR_MODEL
         ).eval().cuda()
         logging.info("Model and adapter loaded successfully.")
         
