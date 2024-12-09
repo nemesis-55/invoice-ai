@@ -50,16 +50,21 @@ def load_model_and_tokenizer():
         
         # Log the loading process of the base model
         logging.info(f"Loading model from {MODEL_TYPE}...")
-        model = AutoModel.from_pretrained(
+        model =  AutoModel.from_pretrained(
+                MODEL_TYPE,
+                trust_remote_code=True, torch_dtype=torch.bfloat16
+                )
+        logging.info("Base Model loaded successfully")
+        lora_model = PeftModel.from_pretrained(
+            model,
             ADAPTOR_TYPE,
             device_map="auto",
             trust_remote_code=True,
-            torch_dtype=torch.bfloat16,
-            cache_dir=CACHE_DIR_MODEL
+            cache_dir=CACHE_DIR_MODEL, torch_dtype=torch.bfloat16
         ).eval().cuda()
         logging.info("Model and adapter loaded successfully.")
         
-        return model, tokenizer
+        return lora_model, tokenizer
     except Exception as e:
         logging.error(f"Model or adapter loading failed with error: {str(e)}")
         logging.error("Full traceback:")
