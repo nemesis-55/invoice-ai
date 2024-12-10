@@ -39,6 +39,7 @@ def load_model_and_tokenizer():
             torch_dtype=torch.float16,
             trust_remote_code=True, cache_dir=adaptor_dir
         ).eval().cuda()
+        print("loading model successfull")
         return lora_model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
