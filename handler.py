@@ -34,20 +34,11 @@ def load_model_and_tokenizer():
 
         # Load the base model onto the GPU
         print("Loading base model...")
-        model = AutoModel.from_pretrained(
-            MODEL_TYPE,
+        lora_model = AutoModel.from_pretrained(
+            ADAPTOR_TYPE,
             trust_remote_code=True,
             cache_dir=CACHE_DIR_MODEL  # Use FP16 for performance on GPUs
         )
-
-        # Load the LoRA adapter onto the GPU
-        print("Loading LoRA adapter...")
-        lora_model = PeftModel.from_pretrained(
-            model,
-            ADAPTOR_TYPE,
-            cache_dir=CACHE_DIR_ADAPTOR
-        )
-
         print("Eval lora_model")
         # Set model to evaluation mode
         lora_model = lora_model.eval()
