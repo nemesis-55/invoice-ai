@@ -33,7 +33,6 @@ def load_model_and_tokenizer():
         lora_model = PeftModel.from_pretrained(
             model,
             ADAPTOR_TYPE,
-            device_map="auto",
             trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache_dir
         ).eval().cuda()
         print("model loading complete")
