@@ -32,30 +32,30 @@ def load_model_and_tokenizer():
             cache_dir=CACHE_DIR_MODEL
         )
 
-        # Ensure device compatibility
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {device}")
-
         # Load the base model onto the GPU
         print("Loading base model...")
         model = AutoModel.from_pretrained(
             MODEL_TYPE,
             trust_remote_code=True,
-            cache_dir=CACHE_DIR_MODEL,
-            torch_dtype=torch.bfloat16  # Use FP16 for performance on GPUs
-        ).to(device)
+            cache_dir=CACHE_DIR_MODEL  # Use FP16 for performance on GPUs
+        )
 
         # Load the LoRA adapter onto the GPU
         print("Loading LoRA adapter...")
         lora_model = PeftModel.from_pretrained(
             model,
             ADAPTOR_TYPE,
-            torch_dtype=torch.bfloat16,  # Consistent precision
             cache_dir=CACHE_DIR_ADAPTOR
-        ).to(device)
+        )
 
+        print("Eval lora_model")
         # Set model to evaluation mode
         lora_model = lora_model.eval()
+        print("to cuda")
+        lora_model = lora_model.cuda()
+
+
+
 
         # Confirm successful loading
         print("Model and tokenizer loaded successfully!")
