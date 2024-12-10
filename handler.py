@@ -4,55 +4,33 @@ from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
 import pytesseract
 from transformers import AutoTokenizer, AutoModel
-from peft import PeftModel
 import runpod
 from huggingface_hub import login
+import base64
+import fitz  # PyMuPDF
+from peft import PeftModel
 
 # Constants
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
-CACHE_DIR_MODEL = "./cache/model"
-CACHE_DIR_ADAPTOR = "./cache/adaptor"
-
-# Hugging Face Authentication
-print("Logging into Hugging Face...")
+adaptor_dir = "./cache/adaptor"
+print("login to hugging face")
 login("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")
 
+# Load Model and Tokenizer
 def load_model_and_tokenizer():
-    """
-    Efficiently load the model and tokenizer with GPU settings.
-    """
+    """Load the main model and tokenizer."""
     try:
-        # Load the tokenizer
-        print("Loading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(
-                        MODEL_TYPE,
-            trust_remote_code=True,
-            cache_dir=CACHE_DIR_MODEL
-        )
-
-        # Load the base model onto the GPU
-        print("Loading base model...")
-        lora_model = AutoModel.from_pretrained(
-            ADAPTOR_TYPE,
-            trust_remote_code=True,
-            cache_dir=CACHE_DIR_MODEL  # Use FP16 for performance on GPUs
-        )
-        print("Eval lora_model")
-        # Set model to evaluation mode
-        lora_model = lora_model.eval()
-        print("to cuda")
-        lora_model = lora_model.cuda()
-
-
-
-
-        # Confirm successful loading
-        print("Model and tokenizer loaded successfully!")
-        return lora_model, tokenizer
+        print("loading tokenizer")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+        print("loading model")
+        model = AutoModel.from_pretrained(MODEL_TYPE, torch_dtype=torch.bfloat16, device_map="cuda", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir)
+        print("loading complete")
+        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE,torch_dtype=torch.bfloat16, device_map="cuda" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir).cuda().eval()
+        return model, tokenizer
     except Exception as e:
-        print(f"Error loading model and tokenizer: {e}")
+        print(f"exception: {e}")
         return None, None
 
 
