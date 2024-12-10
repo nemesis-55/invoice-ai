@@ -11,7 +11,7 @@ from huggingface_hub import login
 # Constants
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
+ADAPTOR_TYPE = "Zorro123444/invoice-ai-2_6-0.1"
 CACHE_DIR_MODEL = "./cache/model"
 CACHE_DIR_ADAPTOR = "./cache/adaptor"
 
@@ -27,7 +27,7 @@ def load_model_and_tokenizer():
         # Load the tokenizer
         print("Loading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained(
-            MODEL_TYPE,
+            ADAPTOR_TYPE,
             trust_remote_code=True,
             cache_dir=CACHE_DIR_MODEL
         )
@@ -42,7 +42,7 @@ def load_model_and_tokenizer():
             MODEL_TYPE,
             trust_remote_code=True,
             cache_dir=CACHE_DIR_MODEL,
-            torch_dtype=torch.float16  # Use FP16 for performance on GPUs
+            torch_dtype=torch.bfloat16  # Use FP16 for performance on GPUs
         ).to(device)
 
         # Load the LoRA adapter onto the GPU
@@ -50,7 +50,7 @@ def load_model_and_tokenizer():
         lora_model = PeftModel.from_pretrained(
             model,
             ADAPTOR_TYPE,
-            torch_dtype=torch.float16,  # Consistent precision
+            torch_dtype=torch.bfloat16,  # Consistent precision
             cache_dir=CACHE_DIR_ADAPTOR
         ).to(device)
 
@@ -63,7 +63,6 @@ def load_model_and_tokenizer():
     except Exception as e:
         print(f"Error loading model and tokenizer: {e}")
         return None, None
-
 
 
 # Convert PDF Page to Image
