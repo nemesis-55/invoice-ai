@@ -11,7 +11,7 @@ from huggingface_hub import login
 # Constants
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "Zorro123444/invoice-ai-2_6-0.1"
+ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
 CACHE_DIR_MODEL = "./cache/model"
 CACHE_DIR_ADAPTOR = "./cache/adaptor"
 
@@ -27,7 +27,7 @@ def load_model_and_tokenizer():
         # Load the tokenizer
         print("Loading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained(
-            ADAPTOR_TYPE,
+                        MODEL_TYPE,
             trust_remote_code=True,
             cache_dir=CACHE_DIR_MODEL
         )
