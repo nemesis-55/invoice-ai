@@ -10,7 +10,7 @@ from peft import PeftModel
 # Constants
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "Zorro123444/invoice-ai-2_6-0.1"
+ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
 cache_dir = "./cache/model"
 adaptor_dir = "./cache/adaptor"
 print("login to hugging face")
@@ -21,10 +21,11 @@ def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
         print("loading tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("loading model")
         # Log the loading process of the base model
         base_model =  AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, cache_dir=cache_dir)
+        print("loading peft model")
         peft_model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, torch_dtype=torch.bfloat16, trust_remote_code=True, cache_dir=adaptor_dir).eval().cuda()
         return peft_model, tokenizer
     except Exception as e:
