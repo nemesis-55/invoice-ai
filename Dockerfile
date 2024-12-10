@@ -1,5 +1,5 @@
 # Use the RunPod PyTorch image with CUDA as the base image
-FROM runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
+FROM python:3.11.1-buster
 
 # Set the working directory in the container
 WORKDIR /

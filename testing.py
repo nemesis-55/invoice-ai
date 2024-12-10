@@ -6,7 +6,7 @@ import os
 
 
 # API endpoint and headers
-endpoint_id = 'e5cj67pic6yvsc'
+endpoint_id = 'pcip8nvw9a5486'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
