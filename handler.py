@@ -13,7 +13,6 @@ MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
 cache_dir = "./cache/model"
-adaptor_dir = "./cache/adaptor"
 
 print("login to hugging face")
 login("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")
@@ -28,14 +27,14 @@ def load_model_and_tokenizer():
         # Log the loading process of the base model
         model =  AutoModel.from_pretrained(
                 MODEL_TYPE,
-                trust_remote_code=True, cache_dir=cache_dir
+                trust_remote_code=True
                 )
         print("loading peft model")
         lora_model = PeftModel.from_pretrained(
             model,
             ADAPTOR_TYPE,
             device_map="auto",
-            trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=adaptor_dir
+            trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache_dir
         ).eval().cuda()
         print("model loading complete")
         return lora_model, tokenizer
