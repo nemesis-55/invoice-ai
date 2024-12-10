@@ -6,13 +6,12 @@ import pytesseract
 from transformers import AutoTokenizer, AutoModel
 import runpod
 from huggingface_hub import login
-from peft import PeftModel
+
 # Constants
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_2"
 cache_dir = "./cache/model"
-adaptor_dir = "./cache/adaptor"
 print("login to hugging face")
 login("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")
 
@@ -24,10 +23,9 @@ def load_model_and_tokenizer():
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("loading model")
         # Log the loading process of the base model
-        base_model =  AutoModel.from_pretrained(MODEL_TYPE, trust_remote_code=True, cache_dir=cache_dir)
-        print("loading peft model")
-        peft_model = PeftModel.from_pretrained(base_model, ADAPTOR_TYPE, torch_dtype=torch.bfloat16, trust_remote_code=True, cache_dir=adaptor_dir).eval().cuda()
-        return peft_model, tokenizer
+        model =  AutoModel.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, cache_dir=cache_dir, torch_dtype=torch.bfloat16).eval().cuda()
+        print("model loading complete")
+        return model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
 
