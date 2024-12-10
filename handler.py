@@ -28,7 +28,6 @@ def load_model_and_tokenizer():
         # Log the loading process of the base model
         model =  AutoModel.from_pretrained(
                 MODEL_TYPE,
-                device_map="cuda",
                 trust_remote_code=True, cache_dir=model_dir
                 )
         print("loading peft model")
@@ -38,7 +37,7 @@ def load_model_and_tokenizer():
             device_map="cuda",
             torch_dtype=torch.float16,
             trust_remote_code=True, cache_dir=adaptor_dir
-        ).eval().cuda()
+        ).eval()
         print("loading model successfull")
         return lora_model, tokenizer
     except Exception as e:
