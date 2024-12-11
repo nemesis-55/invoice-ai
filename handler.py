@@ -9,6 +9,7 @@ from huggingface_hub import login
 import base64
 import fitz  # PyMuPDF
 from peft import PeftModel
+import numpy
 
 # Constants
 MODEL_DPI = 600
