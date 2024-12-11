@@ -7,5 +7,5 @@ pytesseract
 runpod
 pymupdf
 huggingface_hub
-numpy
+numpy==1.26.4
 peft
