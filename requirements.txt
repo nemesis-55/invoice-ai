@@ -7,4 +7,5 @@ pytesseract
 runpod
 pymupdf
 huggingface_hub
+numpy
 peft
