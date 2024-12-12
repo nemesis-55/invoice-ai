@@ -151,7 +151,7 @@ def run(request):
 
         prompt = generate_prompt(pdf_bytes, ocr_data)
         response = perform_inference(prompt, model, tokenizer)
-        return response
+        return {"response": response}
     except Exception as e:
         print(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
