@@ -6,13 +6,13 @@ import os
 
 
 # API endpoint and headers
-endpoint_id = 'pcip8nvw9a5486'
+endpoint_id = '21m7yr1wkorqc6'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
 headers = {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer GDUKZCHH9CNQF3X44CU53Z5WVX18PD4OWXRH1CGS',
+    'Authorization': 'rpa_IVK8I095G3K2YB26IJ39Y5W5WXRVMBCQ0EASQ8ECg4rvx9',
 }
 
 def page_to_pdf_bytes(page):
@@ -117,12 +117,12 @@ def process_pdf(file_path, pages_to_process):
             else:
                 print(f"No response for Task ID: {task_id}")
         count = count + 1
-        time.sleep(10)  # Wait for 1 minute before checking again
+        time.sleep(30)  # Wait for 1 minute before checking again
     print(f"total time taken in sec: ", count * 10)
 
 if __name__ == "__main__":
     # Path to your PDF file
-    pdf_file_path = "/Users/saurav.kumar3/Downloads/XYLEM_1_30_2.pdf"  # Replace with the actual file path
+    pdf_file_path = "/Users/saurav.kumar3/Downloads/XYLEM_1_30_2_20241022144833_20241022161113.pdf"  # Replace with the actual file path
     
     # Input for number of pages to process
     pages_to_process = int(input("Enter the number of pages to process: "))
