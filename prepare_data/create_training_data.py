@@ -2,7 +2,7 @@ import json
 from PIL import Image
 import pytesseract
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+import random
 
 def extract_text_from_image(image):
     """Extract text from an image derived from the PDF."""
@@ -122,6 +122,7 @@ def create_training_data(raw_data_path, output_file):
 
     # Save the training data to the output file
     print(f"Saving training data to {output_file}...")
+    random.shuffle(training_data)
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(training_data, f, indent=4)
     print(f"Training data saved to {output_file}")

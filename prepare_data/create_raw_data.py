@@ -107,8 +107,8 @@ def remove_fields(obj, fields):
 # Function to map extracted properties to order structure
 def convert_to_order_structure(properties, db_data):
     return remove_fields({
-        "OrderNumber": properties.get("OrderNumber", ""),
-        "InvoiceNumber": properties.get("InvoiceNumber", ""),
+        "OrderNumber":  properties.get("OrderNumber", "") if properties.get("OrderNumber", "") != "" else db_data.get("OrderNumber", ""),
+        "InvoiceNumber": properties.get("InvoiceNumber", "") if properties.get("InvoiceNumber", "") != "" else db_data.get("InvoiceNumber", "") ,
         "BuyerName": db_data.get("BuyerName") if properties.get("BuyerName", "") == "" else properties.get("BuyerName", ""),
         "BuyerAddress1": db_data.get("BuyerAddress1") if properties.get("BuyerAddress1", "") == "" else properties.get("BuyerAddress1", ""),
         "BuyerZipCode": db_data.get("BuyerZipCode") if properties.get("BuyerZipCode", "") == "" else properties.get("BuyerZipCode", ""),
@@ -150,21 +150,33 @@ def create_raw_data(pickup_id, company, json_dir, image_paths):
                 order_copy["Order"]["Items"] = []
                 page_wise_data[page_number] = order_copy
             page_wise_data[page_number]["Order"]["Items"].append(item)
-    for root, _, files in os.walk(json_root):
-        for file in files:
-            if re.match(r"\d+_.*\.json", file):
-                page_num = file.split("_")[0]
-                page_json_path = os.path.join(root, file)
-                extracted_data = load_json(page_json_path)
-                properties = extracted_data.get("Properties", {})
 
-                data = convert_to_order_structure(properties, page_wise_data.get(page_num, {}).get("Order", {}))
-                if data == {} or data["OrderItems"] == []:
-                    continue
-                raw_data[pickup_id][page_num] = {
-                    "image_path": image_paths.get(pickup_id).get(page_num, ""),
-                    "data": data
-                }
+    for page_num, _  in page_wise_data.items():
+        for root, _, files in os.walk(json_root):
+            for file in files:
+                if file.startswith(f"{page_num}_") and file.endswith(".json"):  # Match files starting with page_num_
+                    page_json_path = os.path.join(root, file)
+                    extracted_data = load_json(page_json_path)
+                    properties = extracted_data.get("Properties", {})
+
+                    data = convert_to_order_structure(properties, page_wise_data.get(page_num, {}).get("Order", {}))
+                    if not data or not data.get("OrderItems"):
+                        continue
+
+                    raw_data[pickup_id][page_num] = {
+                        "image_path": image_paths.get(pickup_id, {}).get(page_num, ""),
+                        "data": data
+                    }
+                else:
+                    data = convert_to_order_structure({}, page_wise_data.get(page_num, {}).get("Order", {}))
+                    if not data or not data.get("OrderItems"):
+                        continue
+
+                    raw_data[pickup_id][page_num] = {
+                        "image_path": image_paths.get(pickup_id, {}).get(page_num, ""),
+                        "data": data
+                    }
+
     
 
 # Main Execution

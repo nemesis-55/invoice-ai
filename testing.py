@@ -6,7 +6,7 @@ import os
 
 
 # API endpoint and headers
-endpoint_id = '21m7yr1wkorqc6'
+endpoint_id = 'swi95ihchaakcm'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
@@ -122,7 +122,7 @@ def process_pdf(file_path, pages_to_process):
 
 if __name__ == "__main__":
     # Path to your PDF file
-    pdf_file_path = "/Users/saurav.kumar3/Downloads/[Untitled]_20250117084540.pdf"  # Replace with the actual file path
+    pdf_file_path = "/Users/saurav.kumar3/invoice-ai/data/pdf/79341/[Untitled] (2)_20240416064857.pdf"  # Replace with the actual file path
     
     # Input for number of pages to process
     pages_to_process = int(input("Enter the number of pages to process: "))
