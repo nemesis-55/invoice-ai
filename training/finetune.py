@@ -202,9 +202,6 @@ def train():
         trust_remote_code=True,
         torch_dtype=compute_dtype,
         device_map=device_map,
-        init_vision=True,
-        init_audio=False,
-        init_tts=False,
     )
 
     tokenizer = AutoTokenizer.from_pretrained(

@@ -132,7 +132,7 @@ def conversation_to_ids(conversation, tokenizer, llm_type=None, new_schema=False
         input_ids, context, raw_msg = conversation_to_ids_llama3(
             conversation, tokenizer
         )
-    elif llm_type == "qwen":
+    elif llm_type == "qwen2":
         input_ids, context, raw_msg = conversation_to_ids_qwen2(
             conversation, tokenizer
         )
@@ -336,7 +336,7 @@ def preprocess(
     )
     new_schema = False
     use_image_id = False
-    if llm_type=='qwen':
+    if llm_type=='qwen2':
         new_schema = True
         use_image_id = True
     image_placeholder_dict = {}
@@ -380,7 +380,7 @@ def preprocess(
             )
         else:
             conversations[0]["content"] = (
-                image_placeholder + "\n" + conversations[0]["content"]
+                image_placeholder + "\n" + conversation[0]["content"]
             )
         input_dict = conversation_to_ids(conversations, tokenizer, llm_type, new_schema, max_length)
     else:

@@ -1,20 +1,20 @@
 #!/bin/bash
 
-GPUS_PER_NODE=1
+GPUS_PER_NODE=2
 NNODES=1
 NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6001
- 
-MODEL="Zorro123444/invoice_extracter_2"
-# or openbmb/MiniCPM-V-2, openbmb/MiniCPM-Llama3-V-2_5, openbmb/MiniCPM-V-2_6
+
+MODEL="openbmb/MiniCPM-V-2_6" # or openbmb/MiniCPM-V-2, openbmb/MiniCPM-Llama3-V-2_5
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="../data/train_data.json"
-EVAL_DATA="../data/train_data.json"
-# if use openbmb/MiniCPM-V-2, please set LLM_TYPE=minicpm, if use openbmb/MiniCPM-Llama3-V-2_5, please set LLM_TYPE="llama3",
-# if use openbmb/MiniCPM-o-2_6 or openbmb/MiniCPM-V-2_6, please set LLM_TYPE=qwen
-LLM_TYPE="qwen"   
+DATA="./data/train_data.json"
+EVAL_DATA="./data/train_data.json"
+LLM_TYPE="qwen2" 
+# if use openbmb/MiniCPM-V-2, please set LLM_TYPE=minicpm
+#if use openbmb/MiniCPM-Llama3-V-2_5, please set LLM_TYPE=llama3
+
 MODEL_MAX_Length=4096 # if conduct multi-images sft, please set MODEL_MAX_Length=4096
 
 DISTRIBUTED_ARGS="
@@ -24,7 +24,6 @@ DISTRIBUTED_ARGS="
     --master_addr $MASTER_ADDR \
     --master_port $MASTER_PORT
 "
-
 torchrun $DISTRIBUTED_ARGS finetune.py  \
     --model_name_or_path $MODEL \
     --llm_type $LLM_TYPE \
@@ -45,8 +44,8 @@ torchrun $DISTRIBUTED_ARGS finetune.py  \
     --lora_target_modules "llm\..*layers\.\d+\.self_attn\.(q_proj|k_proj|v_proj|o_proj)" \
     --model_max_length $MODEL_MAX_Length \
     --max_slice_nums 9 \
-    --max_steps 10000 \
-    --eval_steps 1000 \
+    --max_steps 4000 \
+    --eval_steps 800 \
     --output_dir output/output__lora \
     --logging_dir output/output_lora \
     --logging_strategy "steps" \

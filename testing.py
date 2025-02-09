@@ -122,7 +122,7 @@ def process_pdf(file_path, pages_to_process):
 
 if __name__ == "__main__":
     # Path to your PDF file
-    pdf_file_path = "/Users/saurav.kumar3/Downloads/XYLEM_1_30_2_20241022144833_20241022161113.pdf"  # Replace with the actual file path
+    pdf_file_path = "/Users/saurav.kumar3/Downloads/[Untitled]_20250117084540.pdf"  # Replace with the actual file path
     
     # Input for number of pages to process
     pages_to_process = int(input("Enter the number of pages to process: "))

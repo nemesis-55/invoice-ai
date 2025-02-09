@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+
+# Virtual environment
+venv/
+.env/
+path/
+data/
+
+# Cache files
+.cache/
+*.log
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Hugging Face Transformers Cache
+~/.cache/huggingface/
+
+# Data files
+data/
+*.csv
+*.json
+
+# Model files and checkpoints
+checkpoints/
+*.ckpt
+*.pt
+*.bin
+
+# Docker
+*.dockerignore
+
+# VSCode settings
+.vscode/
+
+# RunPod specific files
+runpod/
+
+# Ignore large files
+*.tar.gz
+*.zip
