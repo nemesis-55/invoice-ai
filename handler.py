@@ -15,7 +15,7 @@ import numpy
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_3.0"
-adaptor_dir = "/mnt/cache/adaptor"
+adaptor_dir = "/runpod-volume/cache/adaptor"
 print("login to hugging face")
 login("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")
 
