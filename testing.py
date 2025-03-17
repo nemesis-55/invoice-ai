@@ -3,10 +3,12 @@ import time
 import base64
 import fitz  # PyMuPDF
 import os
+import json
+from concurrent.futures import ThreadPoolExecutor
 
 
 # API endpoint and headers
-endpoint_id = 'swi95ihchaakcm'
+endpoint_id = '1yxgq2n20w99oo'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
@@ -14,6 +16,9 @@ headers = {
     'Content-Type': 'application/json',
     'Authorization': 'rpa_IVK8I095G3K2YB26IJ39Y5W5WXRVMBCQ0EASQ8ECg4rvx9',
 }
+
+final_response = {}
+
 
 def page_to_pdf_bytes(page):
     """
@@ -69,7 +74,7 @@ def poll_task_status(task_id):
     response_data = response.json()
     return response_data
 
-def process_pdf(file_path, pages_to_process):
+def process_pdf(file_path, pages_to_process, pickup_id):
     """
     Loads a PDF file, converts each page into PDF bytes, and sends it page by page to the API.
 
@@ -79,7 +84,7 @@ def process_pdf(file_path, pages_to_process):
     """
     # Open the PDF document
     pdf_document = fitz.open(file_path)
-
+    complete_response = {}
     # Store the task details in a dictionary
     tasks = {}
 
@@ -110,24 +115,39 @@ def process_pdf(file_path, pages_to_process):
                 status = response_data.get('status')
 
                 if status == "COMPLETED":
-                    print(f"Page {page_number} completed! Response: {response_data}")
+                    try:
+                        complete_response[page_number] = json.loads(response_data.get('output').get('response'))
+                    except Exception as e:
+                        print(f"failure while converting taskId:{task_id} page_num: {page_number} response: {response_data.get('output')}")
+                        complete_response[page_number] = response_data.get('output').get('response')
                     del tasks[task_id]  # Remove the completed task from the dictionary
                 else:
                     print(f"Task {task_id} is still in progress (status: {status}). Waiting 1 minute...")
             else:
                 print(f"No response for Task ID: {task_id}")
         count = count + 1
-        time.sleep(30)  # Wait for 1 minute before checking again
+        if tasks:
+            time.sleep(60)  # Wait for 1 minute before checking again
     print(f"total time taken in sec: ", count * 10)
+    final_response[pickup_id] = complete_response
 
 if __name__ == "__main__":
     # Path to your PDF file
-    pdf_file_path = "/Users/saurav.kumar3/invoice-ai/data/pdf/79341/[Untitled] (2)_20240416064857.pdf"  # Replace with the actual file path
-    
-    # Input for number of pages to process
-    pages_to_process = int(input("Enter the number of pages to process: "))
-    
-    # Process the PDF and get the results
-    process_pdf(pdf_file_path, pages_to_process)
+    output_file_path = "./data/model_output_dentalspar_72951.json"
 
-    print(f"Processing completed for {os.path.basename(pdf_file_path)}")
+    pdf_data = [
+        {
+            "pdf_file_path": "/Users/saurav.kumar3/invoice-ai/data/pdf/72951/1_VK1963434_20240313050241.pdf",
+            "output_id": "72951"
+        }
+    ]
+
+    # Input for number of pages to process
+    pages_to_process = 1000
+
+    with ThreadPoolExecutor(max_workers=24) as executor:
+        for data in pdf_data:
+            executor.submit(process_pdf, data.get("pdf_file_path"), pages_to_process, data.get("output_id"))
+
+    with open(output_file_path, "w", encoding="utf-8") as f:
+        json.dump(final_response, f, indent=4)

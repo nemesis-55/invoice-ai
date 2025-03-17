@@ -14,7 +14,7 @@ import numpy
 # Constants
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "Zorro123444/invoice_extracter_3.2"
+ADAPTOR_TYPE = "Zorro123444/invoice_extracter_4"
 adaptor_dir = "/runpod-volume/cache/adaptor"
 print("login to hugging face")
 login("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")
@@ -26,9 +26,9 @@ def load_model_and_tokenizer():
         print("loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("loading model")
-        model = AutoModel.from_pretrained(MODEL_TYPE, torch_dtype=torch.bfloat16, device_map="cuda", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir)
+        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="cuda", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir)
         print("loading complete")
-        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE,torch_dtype=torch.bfloat16, device_map="cuda" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir).cuda().eval()
+        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="cuda" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir).cuda().eval()
         return model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
