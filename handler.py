@@ -71,7 +71,6 @@ def generate_prompt(pdf_bytes, ocr_data):
             f"### OCR Data:\n{ocr_data}\n\n"
             "### Instructions:\n"
             "1. Extract the required fields as per the JSON structure.\n"
-            "2. Return a valid JSON string without extra text.\n"
             "3. If a field is missing, set its value to \"\".\n"
             "### JSON Output:\n"
             "{\n"
@@ -92,6 +91,7 @@ def generate_prompt(pdf_bytes, ocr_data):
             "    \"OrderDate\": \"<YYYY-MM-DD>\",\n"
             "    \"Currency\": \"<string>\",\n"
             "    \"TermsOfDelCode\": \"<string>\",\n"
+            "    \"ActualFreight\": \"<string>\",\n"
             "    \"OrderItems\": [\n"
             "        {\n"
             "            \"Description\": \"<string>\",\n"
@@ -111,7 +111,7 @@ def generate_prompt(pdf_bytes, ocr_data):
             "    \"NetWeight\": \"<string>\",\n"
             "    \"NumberOfUnits\": \"<string>\"\n"
             "}\n\n"
-            "### Note:\n"
+            "### Note: Output value must not contain any double quote (\")  \n"
             "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted using OCR data and image."
         )
         
