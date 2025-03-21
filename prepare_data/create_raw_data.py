@@ -7,14 +7,17 @@ from concurrent.futures import ThreadPoolExecutor
 import fitz  # PyMuPDF
 from PIL import Image
 import requests
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # Constants
 BLOB_SAS_URL = "https://saascustomsportalstorage.blob.core.windows.net/processedpickupfiles?sp=rli&st=2025-01-16T15:04:11Z&se=2026-01-16T23:04:11Z&sv=2022-11-02&sr=c&sig=uupon7JS1M4d99zcToMjQvlzj9LiXqxqgdANOtqGKhs%3D"
 PDF_BLOB_URL = "https://saascustomsportalstorage.blob.core.windows.net/pickupfiles?sp=rli&st=2025-01-16T15:04:44Z&se=2026-01-16T23:04:44Z&sv=2022-11-02&sr=c&sig=GmbLCUpv%2F7TsLxvzWS0Y%2BEfYlcHxtxTzgz4hwHJN12c%3D"
 FIELDS_TO_REMOVE = ["PageNumber", "ItemNumber"]
-PICKUP_MAP = {"xylem": ["64189","64191","64461","66062"],
-              "tarket": ["80482","80748","81006","79341"],
-              "dentalspar": ["71823","72110","72951","78053","79886"]}
+PICKUP_MAP = {
+    "tarket": ["116083", "148871", "148842", "148803", "148774", "148450", "147823", "144425", "143419", "146791", "146473", "116064", "116056", "115803", "115786", "115736"],
+    "xylem": ["149740", "149738", "149377", "149032", "149000", "148374", "147658", "143949", "149377", "149032", "149000", "148782", "148374", "148224", "148010", "147658", "147656", "146377", "145776", "145370"]
+    # "dentalspar": ["149061", "148861", "148107", "148861", "145054", "144690"]
+    }
 XYLEM_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUiLCJjb21wYW55SWQiOiIxMjM5IiwibmFtZSI6Ilh5bGVtIiwicm9sZSI6IkN1c3RvbXNQb3J0YWwiLCJuYmYiOjE3Mzc2MTY2MDgsImV4cCI6MTc0NTM2NjQwMCwiaWF0IjoxNzM3NjE2NjA4LCJpc3MiOiJodHRwczovL3RyYW5zcG9ydGx5c3FsYXBpdjIuYXp1cmV3ZWJzaXRlcy5uZXQiLCJhdWQiOiJodHRwczovL3RyYW5zcG9ydGx5c3FsYXBpdjIuYXp1cmV3ZWJzaXRlcy5uZXQifQ.k7yB5Z2MDZcW4U-JrB4A61dbGG4rzdnB8tjusbLtcpY"
 TARKETT_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQiLCJjb21wYW55SWQiOiIxMTg4IiwibmFtZSI6IlRhcmtldHQiLCJyb2xlIjoiQ3VzdG9tc1BvcnRhbCIsIm5iZiI6MTczNzYxNjU3MywiZXhwIjoxNzQ1MzY2NDAwLCJpYXQiOjE3Mzc2MTY1NzMsImlzcyI6Imh0dHBzOi8vdHJhbnNwb3J0bHlzcWxhcGl2Mi5henVyZXdlYnNpdGVzLm5ldCIsImF1ZCI6Imh0dHBzOi8vdHJhbnNwb3J0bHlzcWxhcGl2Mi5henVyZXdlYnNpdGVzLm5ldCJ9.RDGKCmBxgyyqMoPaYiQt_5CulL8dz3Uc2_IiR08EeaA"
 DENTALSPAR_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYiLCJjb21wYW55SWQiOiIxMjIxIiwibmFtZSI6IkRFTlRBTFNQQVIgQVMiLCJyb2xlIjoiQ3VzdG9tc1BvcnRhbCIsIm5iZiI6MTczNzYxNjcwOSwiZXhwIjoxNzQ1MzY2NDAwLCJpYXQiOjE3Mzc2MTY3MDksImlzcyI6Imh0dHBzOi8vdHJhbnNwb3J0bHlzcWxhcGl2Mi5henVyZXdlYnNpdGVzLm5ldCIsImF1ZCI6Imh0dHBzOi8vdHJhbnNwb3J0bHlzcWxhcGl2Mi5henVyZXdlYnNpdGVzLm5ldCJ9.YI4DmA5iJonABF9jTIe2TqIvhLkVhho75ZP6hhlKoho"
@@ -23,10 +26,10 @@ TOKENS = {
     "tarket": f"{TARKETT_TOKEN}",
     "dentalspar": f"{DENTALSPAR_TOKEN}"
 }
-PDF_OUTPUT_DIR = ".././data/pdf"
-IMAGE_OUTPUT_DIR = ".././data/image"
-EXTRACTED_OUTPUT_DIR = ".././data/raw_output"
-RAW_DATA_OUTPUT = ".././data/raw_data.json"
+PDF_OUTPUT_DIR = "./data/pdf"
+IMAGE_OUTPUT_DIR = "./data/image"
+EXTRACTED_OUTPUT_DIR = "./data/extractedData"
+RAW_DATA_OUTPUT = "./data/raw_dental_data.json"
 MAX_WORKERS = 100
 API_URL = "https://transportlysqlapiv2.azurewebsites.net/public/v1/OrderData"
 
@@ -57,29 +60,53 @@ def load_json(file_path):
             print(f"Error loading JSON: {e}")
             return {}
 
-# Function to download blobs from a container
-def download_blob_folder(sas_url, folder_path, output_directory):
+def download_blob_folder(sas_url, pickup_id, output_directory, max_workers=8):
     url_parts = urlparse(sas_url)
     account_url = f"https://{url_parts.netloc}"
     container_name = url_parts.path.split('/')[1]
 
     blob_service_client = BlobServiceClient(account_url=account_url, credential=url_parts.query)
     container_client = blob_service_client.get_container_client(container_name)
-    blobs = container_client.list_blobs(name_starts_with=folder_path)
+    blobs = list(container_client.list_blobs(name_starts_with=pickup_id))
 
-    for blob in blobs:
+    def download_blob(blob):
         blob_name = blob.name
-        local_file_path = os.path.join(output_directory, blob_name)
+
+        # Determine destination folder based on file type
+        if blob_name.lower().endswith(".pdf"):
+            destination_dir = os.path.join(output_directory, f"pdf/{pickup_id}")
+        elif blob_name.lower().endswith(".json"):
+            destination_dir = os.path.join(output_directory, f"extractedData/{pickup_id}")
+        else:
+            # Skip non-pdf and non-json files
+            return None
+
+        # Maintain relative path
+        relative_path = os.path.relpath(blob_name, pickup_id)
+        local_file_path = os.path.join(destination_dir, relative_path)
+
         os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
-        with open(local_file_path, "wb") as download_file:
+        # Download blob
+        try:
             download_stream = container_client.download_blob(blob_name)
-            download_file.write(download_stream.readall())
+            with open(local_file_path, "wb") as download_file:
+                download_file.write(download_stream.readall())
+            return f"Downloaded: {blob_name} to {local_file_path}"
+        except Exception as e:
+            return f"Failed to download {blob_name}: {e}"
 
-        print(f"Downloaded: {blob_name} to {local_file_path}")
+    # Run downloads in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(download_blob, blob) for blob in blobs]
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                print(result)
+
 
 # Function to convert PDF to images
-def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
+def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=500):
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
     image_paths = {}
@@ -104,111 +131,215 @@ def remove_fields(obj, fields):
         return [remove_fields(i, fields) for i in obj]
     return obj
 
-# Function to map extracted properties to order structure
-def convert_to_order_structure(properties, db_data):
+# Define the fields structure for individual order items
+ORDER_ITEM_FIELDS = [
+    "Description", "HsCode", "HsCodeExport", "Quantity", "ArticleNumber",
+    "GrossWeight", "NetWeight", "CountryOfOrigin", "NumberOfUnits",
+    "TypeOfUnit", "PricePerPiece", "NetAmount"
+]
+
+def convert_to_order_structure(properties):
+    def clean_hscode(value: str) -> str:
+
+        value = value.strip()  # Remove leading/trailing whitespace
+        if value.startswith("H.S.CODE:"):
+            return value.replace("H.S.CODE:", "", 1).strip()
+        return value
+    
+
+    def clean_number(value: str) -> str:
+        value = value.replace(" ", "")  
+        value = value.replace("(", "")
+        value = value.replace(")", "")
+        return value
+
+    def pick_value(key, default=None):
+        val = properties.get(key, default)
+        if val == None or val == "null":
+            val = ""
+        return val
+    
+    def clean_field(key, val):
+        if key == "HsCode":
+            val = clean_hscode(val)
+        if key in ["ArticleNumber", "GrossWeight", "NetWeight", "NumberOfUnits", "NetAmount", "PricePerPiece"]:
+            val = clean_number(val)
+        return val
+
+    def map_order_items(items):
+        order_items = []
+        for item in items:
+            mapped_item = {field: clean_field(field, item.get(field, "")) for field in ORDER_ITEM_FIELDS}
+            order_items.append(mapped_item)
+        return order_items
+
+    raw_items = properties.get("OrderItems", [])
+    order_items = map_order_items(raw_items)
+
     return remove_fields({
-        "OrderNumber":  properties.get("OrderNumber", "") if properties.get("OrderNumber", "") != "" else db_data.get("OrderNumber", ""),
-        "InvoiceNumber": properties.get("InvoiceNumber", "") if properties.get("InvoiceNumber", "") != "" else db_data.get("InvoiceNumber", "") ,
-        "BuyerName": db_data.get("BuyerName") if properties.get("BuyerName", "") == "" else properties.get("BuyerName", ""),
-        "BuyerAddress1": db_data.get("BuyerAddress1") if properties.get("BuyerAddress1", "") == "" else properties.get("BuyerAddress1", ""),
-        "BuyerZipCode": db_data.get("BuyerZipCode") if properties.get("BuyerZipCode", "") == "" else properties.get("BuyerZipCode", ""),
-        "BuyerCity": db_data.get("BuyerCity") if properties.get("BuyerCity", "") == "" else properties.get("BuyerCity", ""),
-        "BuyerCountry": db_data.get("BuyerCountry") if properties.get("BuyerCountry", "") == "" else properties.get("BuyerCountry", ""),
-        "ReceiverName": db_data.get("ReceiverName") if properties.get("ReceiverName", "") == "" else properties.get("ReceiverName", ""),
-        "ReceiverAddress1": db_data.get("ReceiverAddress1") if properties.get("ReceiverAddress1", "") == "" else properties.get("ReceiverAddress1", ""),
-        "ReceiverZipCode": db_data.get("ReceiverZipCode") if properties.get("ReceiverZipCode", "") == "" else properties.get("ReceiverZipCode", ""),
-        "ReceiverCity": db_data.get("ReceiverCity") if properties.get("ReceiverCity", "") == "" else properties.get("ReceiverCity", ""),
-        "ReceiverCountry": db_data.get("ReceiverCountry") if properties.get("ReceiverCountry", "") == "" else properties.get("ReceiverCountry", ""),
-        "SellerName": db_data.get("SellerName") if properties.get("SellerName", "") == "" else properties.get("SellerName", ""),
-        "NetAmount": db_data.get("NetAmount", ""),
-        "OrderDate": db_data.get("OrderDate") if properties.get("OrderDate", "") == "" else properties.get("OrderDate", ""),
-        "Currency": db_data.get("Currency", ""),
-        "TermsOfDelCode": db_data.get("TermsOfDelCode", ""),
-        "OrderItems": db_data.get("Items", []),
-        "NetWeight": db_data.get("NetWeight", ""),
-        "NumberOfUnits": db_data.get("NumberOfUnits", "")
+        "OrderNumber": pick_value("OrderNumber"),
+        "InvoiceNumber": pick_value("InvoiceNumber"),
+        "BuyerName": pick_value("BuyerName"),
+        "BuyerAddress1": pick_value("BuyerAddress1"),
+        "BuyerZipCode": pick_value("BuyerZipCode"),
+        "BuyerCity": pick_value("BuyerCity"),
+        "BuyerCountry": pick_value("BuyerCountry"),
+        "ReceiverName": pick_value("ReceiverName"),
+        "ReceiverAddress1": pick_value("ReceiverAddress1"),
+        "ReceiverZipCode": pick_value("ReceiverZipCode"),
+        "ReceiverCity": pick_value("ReceiverCity"),
+        "ReceiverCountry": pick_value("ReceiverCountry"),
+        "SellerName": pick_value("SellerName"),
+        "NetAmount": clean_number(pick_value("NetAmount")),
+        "OrderDate": pick_value("OrderDate"),
+        "Currency": pick_value("Currency"),
+        "TermsOfDelCode": pick_value("TermsOfDelCode"),
+        "OrderItems": order_items,
+        "NetWeight": pick_value("NetWeight"),
+        "ActualFreight": pick_value("ActualFreight"),
+        "NumberOfUnits": pick_value("NumberOfUnits")
     }, FIELDS_TO_REMOVE)
+
+
+
 
 # Function to create raw data from extracted JSON
 raw_data = {}
-def create_raw_data(pickup_id, company, json_dir, image_paths):
-    api_data = fetch_api_data(pickup_id, company)
-    json_root = os.path.join(json_dir, pickup_id, "ExtractedData")
 
+def create_raw_data(pickup_id, company, json_dir, image_paths):
+    json_root = os.path.join(json_dir, pickup_id)
     if not os.path.exists(json_root):
         print(f"Extracted JSON directory not found for Pickup ID {pickup_id}. Skipping...")
         return
+    
 
     raw_data[pickup_id] = {}
-    page_wise_data = {}
     
-    for order in api_data:
-        for item in order["Order"]["Items"]:
-            page_number = str(item["PageNumber"])
-            if page_number not in page_wise_data:
-                order_copy = json.loads(json.dumps(order))
-                order_copy["Order"]["Items"] = []
-                page_wise_data[page_number] = order_copy
-            page_wise_data[page_number]["Order"]["Items"].append(item)
-
-    for page_num, _  in page_wise_data.items():
+    page_wise_data = {}
+    if company == "dentalspar":
+        matching_json_file = None
         for root, _, files in os.walk(json_root):
             for file in files:
-                if file.startswith(f"{page_num}_") and file.endswith(".json"):  # Match files starting with page_num_
-                    page_json_path = os.path.join(root, file)
-                    extracted_data = load_json(page_json_path)
-                    properties = extracted_data.get("Properties", {})
-
-                    data = convert_to_order_structure(properties, page_wise_data.get(page_num, {}).get("Order", {}))
-                    if not data or not data.get("OrderItems"):
-                        continue
-
-                    raw_data[pickup_id][page_num] = {
-                        "image_path": image_paths.get(pickup_id, {}).get(page_num, ""),
-                        "data": data
-                    }
+                if file.startswith(f"{1}_") and file.endswith(".json"):
+                    matching_json_file = os.path.join(root, file)
+                    break
+            if matching_json_file:
+                break
+        extracted_data = load_json(matching_json_file)
+        for item in extracted_data.get("Properties").get("OrderItems"):
+            page_number = str(item["PageNumber"])
+            if page_number not in page_wise_data:
+                if page_number == "1":
+                    order_copy = json.loads(json.dumps(extracted_data["Properties"]))
+                    order_copy["OrderItems"] = []
                 else:
-                    data = convert_to_order_structure({}, page_wise_data.get(page_num, {}).get("Order", {}))
-                    if not data or not data.get("OrderItems"):
-                        continue
+                    order_copy = {
+                                "OrderNumber": "",
+                                "InvoiceNumber": "",
+                                "BuyerName": "",
+                                "BuyerAddress1": "",
+                                "BuyerZipCode": "",
+                                "BuyerCity": "",
+                                "BuyerCountry": "",
+                                "ReceiverName": "",
+                                "ReceiverAddress1": "",
+                                "ReceiverZipCode": "",
+                                "ReceiverCity": "",
+                                "ReceiverCountry": "",
+                                "SellerName": "",
+                                "NetAmount": "",
+                                "OrderDate": "",
+                                "Currency": "",
+                                "TermsOfDelCode": "",
+                                "OrderItems": [],
+                                "NetWeight": "",
+                                "NumberOfUnits": ""
+                            }
+                page_wise_data[page_number] = order_copy
+            page_wise_data[page_number].get("OrderItems").append(item)
+    for page_num, image_path in image_paths.get(pickup_id, {}).items():
+        properties = {}
+        if company == "dentalspar":
+            print(page_num)
+            properties = page_wise_data.get(page_num, {})
+        else:
 
-                    raw_data[pickup_id][page_num] = {
-                        "image_path": image_paths.get(pickup_id, {}).get(page_num, ""),
-                        "data": data
-                    }
+        # Try to find the matching extracted JSON
+            matching_json_file = None
+            for root, _, files in os.walk(json_root):
+                for file in files:
+                    if file.startswith(f"{page_num}_") and file.endswith(".json"):
+                        matching_json_file = os.path.join(root, file)
+                        break
+                if matching_json_file:
+                    break
 
-    
+            # Load properties if JSON is found
+            if matching_json_file:
+                extracted_data = load_json(matching_json_file)
+                properties = extracted_data.get("Properties", {})
+
+       
+        data = convert_to_order_structure(properties)
+
+        raw_data[pickup_id][page_num] = {
+            "image_path": image_path,
+            "data": data
+        }
+
+
+
+def process_single_pdf(pickup_id, pdf_path, image_output_dir):
+    return pickup_id, convert_pdf_to_images(pickup_id, pdf_path, image_output_dir)
+
+def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_json_path, max_workers=8):
+    tasks = []
+
+    for pickup_id in pickup_ids:
+        pdf_folder = os.path.join(pdf_output_dir, pickup_id)
+        for pdf_file in os.listdir(pdf_folder):
+            if pdf_file.endswith(".pdf"):
+                pdf_path = os.path.join(pdf_folder, pdf_file)
+                tasks.append((pickup_id, pdf_path))
+
+    image_paths_map = {}
+
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_single_pdf, pickup_id, pdf_path, image_output_dir) for pickup_id, pdf_path in tasks]
+        for future in as_completed(futures):
+            try:
+                pickup_id, image_paths = future.result()
+                image_paths_map[pickup_id] = image_paths
+            except Exception as e:
+                print(f"Failed to process a PDF: {e}")
+
+    # Save the image paths mapping
+    with open(output_json_path, "w", encoding="utf-8") as f:
+        json.dump(image_paths_map, f, indent=4)    
 
 # Main Execution
 if __name__ == "__main__":
-    # pickup_ids = []
-    # for company, pickup_id_list in PICKUP_MAP.items():
-    #     pickup_ids.extend(pickup_id_list)
+    pickup_ids = []
+    for company, pickup_id_list in PICKUP_MAP.items():
+        pickup_ids.extend(pickup_id_list)
 
     
-    # # Step 1: Download PDF files
-    # with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-    #     for pickup_id in pickup_ids:
-    #         executor.submit(download_blob_folder, PDF_BLOB_URL, pickup_id, PDF_OUTPUT_DIR)
+    # Step 1: Download PDF files
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        for pickup_id in pickup_ids:
+            executor.submit(download_blob_folder, PDF_BLOB_URL, pickup_id, "./data")
     
-    # # Step 2: Convert PDFs to images
-    # image_paths_map = {}
-    # for pickup_id in pickup_ids:
-    #     pdf_folder = os.path.join(PDF_OUTPUT_DIR, pickup_id)
-    #     for pdf_file in os.listdir(pdf_folder):
-    #         if pdf_file.endswith(".pdf"):
-    #             pdf_path = os.path.join(pdf_folder, pdf_file)
-    #             image_paths_map[pickup_id] = convert_pdf_to_images(pickup_id, pdf_path, IMAGE_OUTPUT_DIR)
-    # with open(".././data/image_path_map.json", "w", encoding="utf-8") as f:
-    #     json.dump(image_paths_map, f, indent=4)
+    # Step 2: Convert PDFs to images
+    parallel_pdf_to_images(
+        pickup_ids=pickup_ids,
+        pdf_output_dir=PDF_OUTPUT_DIR,
+        image_output_dir=IMAGE_OUTPUT_DIR,
+        output_json_path="./data/image_path_map.json",
+        max_workers=8
+    )
     
-    # # Step 3: Download extracted JSON files
-    # with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-    #     for pickup_id in pickup_ids:
-    #         executor.submit(download_blob_folder, BLOB_SAS_URL, pickup_id + "/ExtractedData", EXTRACTED_OUTPUT_DIR)
-    
-    # Step 4: Process raw data
-    with open(".././data/image_path_map.json", "r", encoding="utf-8") as file:
+    # Step 3: Process raw data
+    with open("./data/image_path_map.json", "r", encoding="utf-8") as file:
         image_paths_map = json.load(file)
     for company, pickup_ids in PICKUP_MAP.items():
         for pickup_id in pickup_ids:

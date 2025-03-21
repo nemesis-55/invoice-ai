@@ -25,34 +25,43 @@ def download_blob_folder(sas_url, folder_path, output_directory):
 
         print(f"Downloaded: {blob_name} to {local_file_path}")
 
-def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
+def save_pdf_page_as_image(pickup_id, page_num, page, image_output_dir, dpi):
+    """Process a single PDF page and save it as an image."""
+    pix = page.get_pixmap(dpi=dpi)
+    image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
+    Image.frombytes("RGB", [pix.width, pix.height], pix.samples).save(image_path)
+    print(f"Saved: {image_path}")
+
+def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=400):
+    """Convert PDF pages to images using multi-threading."""
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
 
-    for page_num in range(len(pdf_document)):
-        page = pdf_document.load_page(page_num)
-        pix = page.get_pixmap(dpi=dpi)
-        image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:  # Use optimal CPU threads
+        futures = [
+            executor.submit(save_pdf_page_as_image, pickup_id, page_num, pdf_document.load_page(page_num), image_output_dir, dpi)
+            for page_num in range(len(pdf_document))
+        ]
+        for future in futures:
+            future.result()  # Ensure all threads complete execution
 
-        image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
-        image.save(image_path)
-        print(f"Saved: {image_path}")
+    print(f"Finished converting {pdf_path} to images.")
 
 if __name__ == "__main__":
     pdf_connection_string = "https://saascustomsportalstorage.blob.core.windows.net/pickupfiles?sp=rli&st=2025-01-16T15:04:44Z&se=2026-01-16T23:04:44Z&sv=2022-11-02&sr=c&sig=GmbLCUpv%2F7TsLxvzWS0Y%2BEfYlcHxtxTzgz4hwHJN12c%3D"
-    pickup_ids = ["64189","64191","64461","66062","80482","80748","81006","79341","71823","72110","72951","78053","79886"]
+    pickup_ids = ["116083", "148871", "148842", "148803", "148774", "148450", "147823", "144425", "143419", "146791", "146473", "116064", "116056", "115803", "115786", "115736", "149740", "149738", "149377", "149032", "149000", "148374", "147658", "143949", "149377", "149032", "149000", "148782", "148374", "148224", "148010", "147658", "147656", "146377", "145776", "145370"]
     base_output_directory = "./data/pdf"
     image_dir = "./data/image"
 
-    with ThreadPoolExecutor(max_workers=24) as executor:
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
         for pickup_id in pickup_ids:
             executor.submit(download_blob_folder, pdf_connection_string, pickup_id, base_output_directory)
 
     for pickup_id in pickup_ids:
         pdf_folder = os.path.join(base_output_directory, pickup_id)
         pdf_files = [os.path.join(pdf_folder, f) for f in os.listdir(pdf_folder) if f.endswith(".pdf")]
-
-        for pdf_file in pdf_files:
-            convert_pdf_to_images(pickup_id, pdf_file, image_dir)
+        with ThreadPoolExecutor(max_workers=500) as executor:
+            for pdf_file in pdf_files:
+                executor.submit(convert_pdf_to_images,pickup_id, pdf_file, image_dir)
 
     print("PDF download and conversion complete.")

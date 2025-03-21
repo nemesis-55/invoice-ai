@@ -67,8 +67,7 @@ def generate_prompt(pdf_bytes, ocr_data):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
-            "Extract key details from the given OCR-extracted invoice text and image to return a valid JSON object.\n\n"
-            f"### OCR Data:\n{ocr_data}\n\n"
+            "Extract key details from the given image to return a valid JSON object.\n\n"
             "### Instructions:\n"
             "1. Extract the required fields as per the JSON structure.\n"
             "3. If a field is missing, set its value to \"\".\n"

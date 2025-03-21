@@ -10,7 +10,7 @@ MODEL="openbmb/MiniCPM-V-2_6" # or openbmb/MiniCPM-V-2, openbmb/MiniCPM-Llama3-V
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
 DATA="./data/train_data.json"
-EVAL_DATA="./data/train_data.json"
+EVAL_DATA="./data/test_data.json"
 LLM_TYPE="qwen2" 
 # if use openbmb/MiniCPM-V-2, please set LLM_TYPE=minicpm
 #if use openbmb/MiniCPM-Llama3-V-2_5, please set LLM_TYPE=llama3
@@ -44,7 +44,7 @@ torchrun $DISTRIBUTED_ARGS finetune.py  \
     --lora_target_modules "llm\..*layers\.\d+\.self_attn\.(q_proj|k_proj|v_proj|o_proj)" \
     --model_max_length $MODEL_MAX_Length \
     --max_slice_nums 9 \
-    --max_steps 4000 \
+    --max_steps 8000 \
     --eval_steps 800 \
     --output_dir output/output__lora \
     --logging_dir output/output_lora \
@@ -54,7 +54,7 @@ torchrun $DISTRIBUTED_ARGS finetune.py  \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
     --save_strategy "steps" \
-    --save_steps 1000 \
+    --save_steps 2000 \
     --save_total_limit 10 \
     --learning_rate 1e-6 \
     --weight_decay 0.1 \

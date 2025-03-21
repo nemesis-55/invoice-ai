@@ -10,3 +10,6 @@ huggingface_hub
 numpy==1.26.4
 peft
 deepspeed
+azure-storage-blob
+tensorboardX
+flash_attn==2.3.4

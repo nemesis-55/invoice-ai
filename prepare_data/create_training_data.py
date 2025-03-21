@@ -1,8 +1,8 @@
 import json
+import random
 from PIL import Image
 import pytesseract
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import random
 
 def extract_text_from_image(image):
     """Extract text from an image derived from the PDF."""
@@ -14,24 +14,18 @@ def extract_text_from_image(image):
         print(f"Error during text extraction: {e}")
         raise RuntimeError(f"Error during text extraction: {e}")
 
-
 def generate_prompt(image_path):
     """Create the detailed prompt for the model."""
     try:
         image = Image.open(image_path)
         ocr_data = extract_text_from_image(image)
         question = (
-            "You are an AI model specialized in data extraction from invoices. "
-            "Below, you are provided with OCR-extracted text from an invoice. "
-            "Your task is to analyze the OCR data and extract key details to structure them as a JSON object.\n\n"
+            "<image> \n Extract key details from the given OCR-extracted invoice text and image to return a valid JSON object.\n\n"
             f"### OCR Data:\n{ocr_data}\n\n"
             "### Instructions:\n"
-            "1. Extract all the required fields as specified in the JSON structure below.\n"
-            "2. Ensure the output is a syntactically valid JSON string.\n"
-            "3. If a field is missing or unavailable in the OCR text, set its value to an empty string \"\".\n"
-            "4. Maintain the exact formatting of numeric values and dates as found in the input.\n"
-            "5. Do not include additional explanations or comments in your output.\n\n"
-            "### JSON Structure:\n"
+            "1. Extract the required fields as per the JSON structure.\n"
+            "3. If a field is missing, set its value to \"\".\n"
+            "### JSON Output:\n"
             "{\n"
             "    \"OrderNumber\": \"<string>\",\n"
             "    \"InvoiceNumber\": \"<string>\",\n"
@@ -50,30 +44,33 @@ def generate_prompt(image_path):
             "    \"OrderDate\": \"<YYYY-MM-DD>\",\n"
             "    \"Currency\": \"<string>\",\n"
             "    \"TermsOfDelCode\": \"<string>\",\n"
+            "    \"ActualFreight\": \"<string>\",\n"
             "    \"OrderItems\": [\n"
             "        {\n"
-            "            \"ArticleNumber\": \"<string>\",\n"
             "            \"Description\": \"<string>\",\n"
             "            \"HsCode\": \"<string>\",\n"
-            "            \"CountryOfOrigin\": \"<string>\",\n"
+            "            \"HsCodeExport\": \"<string>\",\n"
             "            \"Quantity\": \"<string>\",\n"
+            "            \"ArticleNumber\": \"<string>\",\n"
+            "            \"GrossWeight\": \"<string>\",\n"
             "            \"NetWeight\": \"<string>\",\n"
-            "            \"NetAmount\": \"<string>\",\n"
+            "            \"CountryOfOrigin\": \"<string>\",\n"
+            "            \"NumberOfUnits\": \"<string>\",\n"
+            "            \"TypeOfUnit\": \"<string>\",\n"
             "            \"PricePerPiece\": \"<string>\",\n"
-            "            \"EclEuNO\": \"<string>\"\n"
+            "            \"NetAmount\": \"<string>\"\n"
             "        }\n"
             "    ],\n"
             "    \"NetWeight\": \"<string>\",\n"
             "    \"NumberOfUnits\": \"<string>\"\n"
             "}\n\n"
-            "### Note:\n"
-            "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted from the OCR data."
+            "### Note: Output value must not contain any double quote (\")  \n"
+            "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted using OCR data and image."
         )
         return question
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise
-
 
 def process_page(pickup_id, page_num, data):
     """Process each page to generate training data."""
@@ -84,7 +81,7 @@ def process_page(pickup_id, page_num, data):
         question = generate_prompt(image_path)
         answer = json.dumps(properties, indent=4)
         training_entry = {
-            "id": f"{pickup_id}{page_num}",
+            "id": f"{pickup_id}_{page_num}",
             "image": image_path,
             "conversations": [
                 {"role": "user", "content": question},
@@ -97,8 +94,7 @@ def process_page(pickup_id, page_num, data):
         print(f"Error processing page {page_num} for Pickup ID {pickup_id}: {e}")
         return None
 
-
-def create_training_data(raw_data_path, output_file):
+def create_training_data(raw_data_path):
     training_data = []
     print(f"Loading raw data from {raw_data_path}...")
     with open(raw_data_path, "r", encoding="utf-8") as f:
@@ -120,20 +116,37 @@ def create_training_data(raw_data_path, output_file):
             if result:
                 training_data.append(result)
 
-    # Save the training data to the output file
-    print(f"Saving training data to {output_file}...")
-    random.shuffle(training_data)
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(training_data, f, indent=4)
-    print(f"Training data saved to {output_file}")
+    print("Training data generation complete.")
     return training_data
 
+def split_data(training_data, train_output, test_output, split_ratio=0.25):
+    """Shuffle and split data into train and test sets."""
+    print("Shuffling and splitting the data...")
+    random.shuffle(training_data)
+    
+    split_index = int(len(training_data) * split_ratio)
+    train_data = training_data[:split_index]
+    test_data = training_data[split_index:]
+
+    print(f"Saving {len(train_data)} training samples to {train_output}...")
+    with open(train_output, "w", encoding="utf-8") as f:
+        json.dump(train_data, f, indent=4)
+
+    print(f"Saving {len(test_data)} testing samples to {test_output}...")
+    with open(test_output, "w", encoding="utf-8") as f:
+        json.dump(test_data, f, indent=4)
+
+    print(f"Train-test split complete. Train: {len(train_data)}, Test: {len(test_data)}")
 
 if __name__ == "__main__":
-    raw_data_output = ".././data/raw_data.json"
-    train_data_output = ".././data/train_data.json"
+    raw_data_output = "./data/raw_data.json"
+    train_data_output = "./data/train_data.json"
+    test_data_output = "./data/test_data.json"
 
-    # Step 3: Create Training Data
-    create_training_data(raw_data_output, train_data_output)
+    # Step 1: Create Training Data
+    training_data = create_training_data(raw_data_output)
 
-    print("Raw data creation and training data generation complete.")
+    # Step 2: Split into Train & Test
+    split_data(training_data, train_data_output, test_data_output)
+
+    print("Training and test data preparation complete.")

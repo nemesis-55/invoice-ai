@@ -25,7 +25,7 @@ def download_blob_folder(sas_url, folder_path, output_directory):
 
         print(f"Downloaded: {blob_name} to {local_file_path}")
 
-def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
+def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=500):
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
 
