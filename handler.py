@@ -12,7 +12,7 @@ from peft import PeftModel
 import numpy
 
 # Constants
-MODEL_DPI = 600
+MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5"
 adaptor_dir = "/runpod-volume/cache/adaptor"
@@ -26,9 +26,9 @@ def load_model_and_tokenizer():
         print("loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("loading model")
-        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="cuda", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir)
+        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="auto", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir)
         print("loading complete")
-        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="cuda" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir).cuda().eval()
+        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="auto" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir).cuda().eval()
         return model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
@@ -40,14 +40,18 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
     try:
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        zoom = dpi / 72  # 72 dpi is the default resolution
+        matrix = fitz.Matrix(zoom, zoom)
         if len(pdf_document) < 1:
             raise ValueError("The PDF does not contain any pages.")
         page = pdf_document.load_page(0)
-        pix = page.get_pixmap(dpi=dpi)
-        return Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        pix = page.get_pixmap(matrix=matrix)
+        mode = "RGBA" if pix.alpha else "RGB"
+        return Image.frombytes(mode, [pix.width, pix.height], pix.samples)
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
         raise ValueError(f"Error converting PDF to image: {e}")
+
 
 # Extract Text using OCR
 def extract_text_from_image(pdf_bytes, dpi=MODEL_DPI):
