@@ -12,7 +12,7 @@ from peft import PeftModel
 import numpy
 
 # Constants
-MODEL_DPI = 200
+MODEL_DPI = 100
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5"
 adaptor_dir = "/runpod-volume/cache/adaptor"
@@ -26,9 +26,9 @@ def load_model_and_tokenizer():
         print("loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("loading model")
-        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="auto", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir)
+        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="auto", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir, torch_dtype=torch.bfloat16)
         print("loading complete")
-        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="auto" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir).cuda().eval()
+        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="auto" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir, torch_dtype=torch.bfloat16).cuda().eval()
         return model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
@@ -128,7 +128,7 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
@@ -149,7 +149,7 @@ def run(request):
 
         if not ocr_data:
             print("No OCR data provided. Extracting...")
-            ocr_data = extract_text_from_image(pdf_bytes)
+            # ocr_data = extract_text_from_image(pdf_bytes)
 
         prompt = generate_prompt(pdf_bytes, ocr_data)
         response = perform_inference(prompt, model, tokenizer)
