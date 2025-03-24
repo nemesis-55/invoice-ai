@@ -148,7 +148,7 @@ def run(request):
 
         if not ocr_data:
             print("No OCR data provided. Extracting...")
-            ocr_data = extract_text_from_image(pdf_bytes)
+            ocr_data = extract_text_from_image(pdf_bytes, 600)
 
         prompt = generate_prompt(pdf_bytes, ocr_data)
         response = perform_inference(prompt, model, tokenizer)
