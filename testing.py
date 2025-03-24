@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 # API endpoint and headers
-endpoint_id = 'nshefnlz7vmgmo'
+endpoint_id = 'n7h9g3pw2qmvbm'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
@@ -133,18 +133,18 @@ def process_pdf(file_path, pages_to_process, pickup_id):
 
 if __name__ == "__main__":
     # Path to your PDF file
-    output_file_path = "./data/model_output_148450.json"
+    output_file_path = "./data/model_output_tarket_testing_without_ocr_200dpi.json"
 
     pdf_data = [
         {
-            "pdf_file_path":"/Users/saurav.kumar3/invoice-ai/data/pdf/148450/[Untitled]_20250313071731.pdf",
-            "output_id": "148450"
+            "pdf_file_path":"/Users/saurav.kumar3/Downloads/4670MKJHGFT_20241016080002_20250321234226.pdf",
+            "output_id": "tarket"
         }
     ]
 
 
     # Input for number of pages to process
-    pages_to_process = 25   
+    pages_to_process = 30
 
     with ThreadPoolExecutor(max_workers=24) as executor:
         for data in pdf_data:

@@ -12,7 +12,7 @@ from peft import PeftModel
 import numpy
 
 # Constants
-MODEL_DPI = 300
+MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5"
 adaptor_dir = "/runpod-volume/cache/adaptor"
