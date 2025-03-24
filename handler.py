@@ -9,14 +9,12 @@ from huggingface_hub import login
 import base64
 import fitz  # PyMuPDF
 from peft import PeftModel
-import numpy
 
 # Constants
 MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5"
 adaptor_dir = "/runpod-volume/cache/adaptor"
-print("login to hugging face")
 login("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")
 
 # Load Model and Tokenizer
@@ -27,7 +25,7 @@ def load_model_and_tokenizer():
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("loading model")
         model = AutoModel.from_pretrained(MODEL_TYPE, device_map="auto", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir, torch_dtype=torch.bfloat16)
-        print("loading complete")
+        print("loading adaptor")
         model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="auto" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir, torch_dtype=torch.bfloat16).cuda().eval()
         return model, tokenizer
     except Exception as e:
@@ -71,7 +69,8 @@ def generate_prompt(pdf_bytes, ocr_data):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
-            "Extract key details from the given image to return a valid JSON object.\n\n"
+            "Extract key details from the given OCR-extracted invoice text and image to return a valid JSON object.\n\n"
+            f"### OCR Data:\n{ocr_data}\n\n"
             "### Instructions:\n"
             "1. Extract the required fields as per the JSON structure.\n"
             "3. If a field is missing, set its value to \"\".\n"
@@ -149,7 +148,7 @@ def run(request):
 
         if not ocr_data:
             print("No OCR data provided. Extracting...")
-            # ocr_data = extract_text_from_image(pdf_bytes)
+            ocr_data = extract_text_from_image(pdf_bytes)
 
         prompt = generate_prompt(pdf_bytes, ocr_data)
         response = perform_inference(prompt, model, tokenizer)
