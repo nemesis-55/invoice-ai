@@ -83,7 +83,6 @@ def generate_prompt(pdf_bytes):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
-            "<image>\n"
             "Extract key fields from the invoice image and return a JSON object in the following format.\n"
             "If a value is not present, use an empty string \"\".\n"
             "Do not change or format any values — extract them exactly as shown in the image.\n"
