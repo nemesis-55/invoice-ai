@@ -12,9 +12,8 @@ from peft import PeftModel
 
 # Constants
 MODEL_DPI = 200
-MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5"
-adaptor_dir = "/runpod-volume/cache/adaptor"
+MODEL_TYPE = "Zorro123444/invoice_extracter_5.1"
+model_dir = "/runpod-volume/cache"
 login("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")
 
 # Load Model and Tokenizer
@@ -24,9 +23,7 @@ def load_model_and_tokenizer():
         print("loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
         print("loading model")
-        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="auto", attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir, torch_dtype=torch.bfloat16)
-        print("loading adaptor")
-        model = PeftModel.from_pretrained(model, ADAPTOR_TYPE, device_map="auto" , attn_implementation='sdpa', trust_remote_code=True, cache_dir=adaptor_dir, torch_dtype=torch.bfloat16).cuda().eval()
+        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="auto", attn_implementation='sdpa', trust_remote_code=True, cache_dir=model_dir, torch_dtype=torch.bfloat16)
         return model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
@@ -69,58 +66,57 @@ def generate_prompt(pdf_bytes, ocr_data):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
-            "Extract key details from the given OCR-extracted invoice text and image to return a valid JSON object.\n\n"
-            f"### OCR Data:\n{ocr_data}\n\n"
-            "### Instructions:\n"
-            "1. Extract the required fields as per the JSON structure.\n"
-            "3. If a field is missing, set its value to \"\".\n"
-            "### JSON Output:\n"
+            "<image>\n"
+            "Extract key fields from the invoice image and return a JSON object in the following format.\n"
+            "If a value is not present, use an empty string \"\".\n"
+            "Do not change or format any values — extract them exactly as shown in the image.\n"
+            "Output only the JSON object, without any additional text.\n\n"
             "{\n"
-            "    \"OrderNumber\": \"<string>\",\n"
-            "    \"InvoiceNumber\": \"<string>\",\n"
-            "    \"BuyerName\": \"<string>\",\n"
-            "    \"BuyerAddress1\": \"<string>\",\n"
-            "    \"BuyerZipCode\": \"<string>\",\n"
-            "    \"BuyerCity\": \"<string>\",\n"
-            "    \"BuyerCountry\": \"<string>\",\n"
-            "    \"ReceiverName\": \"<string>\",\n"
-            "    \"ReceiverAddress1\": \"<string>\",\n"
-            "    \"ReceiverZipCode\": \"<string>\",\n"
-            "    \"ReceiverCity\": \"<string>\",\n"
-            "    \"ReceiverCountry\": \"<string>\",\n"
-            "    \"SellerName\": \"<string>\",\n"
-            "    \"NetAmount\": \"<string>\",\n"
-            "    \"OrderDate\": \"<YYYY-MM-DD>\",\n"
-            "    \"Currency\": \"<string>\",\n"
-            "    \"TermsOfDelCode\": \"<string>\",\n"
-            "    \"ActualFreight\": \"<string>\",\n"
-            "    \"OrderItems\": [\n"
-            "        {\n"
-            "            \"Description\": \"<string>\",\n"
-            "            \"HsCode\": \"<string>\",\n"
-            "            \"HsCodeExport\": \"<string>\",\n"
-            "            \"Quantity\": \"<string>\",\n"
-            "            \"ArticleNumber\": \"<string>\",\n"
-            "            \"GrossWeight\": \"<string>\",\n"
-            "            \"NetWeight\": \"<string>\",\n"
-            "            \"CountryOfOrigin\": \"<string>\",\n"
-            "            \"NumberOfUnits\": \"<string>\",\n"
-            "            \"TypeOfUnit\": \"<string>\",\n"
-            "            \"PricePerPiece\": \"<string>\",\n"
-            "            \"NetAmount\": \"<string>\"\n"
-            "        }\n"
-            "    ],\n"
-            "    \"NetWeight\": \"<string>\",\n"
-            "    \"NumberOfUnits\": \"<string>\"\n"
-            "}\n\n"
-            "### Note: Output value must not contain any double quote (\")  \n"
-            "Ensure the JSON structure is returned exactly as shown above, with appropriate values extracted using OCR data and image."
+            "  \"OrderNumber\": \"<string>\",\n"
+            "  \"InvoiceNumber\": \"<string>\",\n"
+            "  \"BuyerName\": \"<string>\",\n"
+            "  \"BuyerAddress1\": \"<string>\",\n"
+            "  \"BuyerZipCode\": \"<string>\",\n"
+            "  \"BuyerCity\": \"<string>\",\n"
+            "  \"BuyerCountry\": \"<string>\",\n"
+            "  \"ReceiverName\": \"<string>\",\n"
+            "  \"ReceiverAddress1\": \"<string>\",\n"
+            "  \"ReceiverZipCode\": \"<string>\",\n"
+            "  \"ReceiverCity\": \"<string>\",\n"
+            "  \"ReceiverCountry\": \"<string>\",\n"
+            "  \"SellerName\": \"<string>\",\n"
+            "  \"NetAmount\": \"<string>\",\n"
+            "  \"OrderDate\": \"<YYYY-MM-DD>\",\n"
+            "  \"Currency\": \"<string>\",\n"
+            "  \"TermsOfDelCode\": \"<string>\",\n"
+            "  \"ActualFreight\": \"<string>\",\n"
+            "  \"OrderItems\": [\n"
+            "    {\n"
+            "      \"Description\": \"<string>\",\n"
+            "      \"HsCode\": \"<string>\",\n"
+            "      \"HsCodeExport\": \"<string>\",\n"
+            "      \"Quantity\": \"<string>\",\n"
+            "      \"ArticleNumber\": \"<string>\",\n"
+            "      \"GrossWeight\": \"<string>\",\n"
+            "      \"NetWeight\": \"<string>\",\n"
+            "      \"CountryOfOrigin\": \"<string>\",\n"
+            "      \"NumberOfUnits\": \"<string>\",\n"
+            "      \"TypeOfUnit\": \"<string>\",\n"
+            "      \"PricePerPiece\": \"<string>\",\n"
+            "      \"NetAmount\": \"<string>\"\n"
+            "    }\n"
+            "  ],\n"
+            "  \"NetWeight\": \"<string>\",\n"
+            "  \"OtherAmount\": \"<string>\",\n"
+            "  \"NumberOfUnits\": \"<string>\"\n"
+            "}\n"
         )
         
         return [{"role": "user", "content": [image, question]}]
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
+
 
 # Handle Inference
 def perform_inference(messages, model, tokenizer):

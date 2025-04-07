@@ -14,9 +14,8 @@ BLOB_SAS_URL = "https://saascustomsportalstorage.blob.core.windows.net/processed
 PDF_BLOB_URL = "https://saascustomsportalstorage.blob.core.windows.net/pickupfiles?sp=rli&st=2025-01-16T15:04:44Z&se=2026-01-16T23:04:44Z&sv=2022-11-02&sr=c&sig=GmbLCUpv%2F7TsLxvzWS0Y%2BEfYlcHxtxTzgz4hwHJN12c%3D"
 FIELDS_TO_REMOVE = ["PageNumber", "ItemNumber"]
 PICKUP_MAP = {
-    "tarket": ["116083", "148871", "148842", "148803", "148774", "148450", "147823", "144425", "143419", "146791", "146473", "116064", "116056", "115803", "115786", "115736"],
+    "tarket": ["116083", "152743", "148871", "153876","153870","153832","153520","153517","153462","153456","153115","153108","153100","153098","153085","152767","152743","152739","152681","152678"," ","Xylem "," ","153702","153695","153319","152971","152608","152228","152227","152124","151907","151530","151529","151275","151168","150796","150403","150083","149740","149738","149665","149660", "148842", "148803", "148774", "148450", "147823", "144425", "143419", "146791", "146473", "116064", "116056", "115803", "115786", "115736"],
     "xylem": ["149740", "149738", "149377", "149032", "149000", "148374", "147658", "143949", "149377", "149032", "149000", "148782", "148374", "148224", "148010", "147658", "147656", "146377", "145776", "145370"]
-    # "dentalspar": ["149061", "148861", "148107", "148861", "145054", "144690"]
     }
 XYLEM_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUiLCJjb21wYW55SWQiOiIxMjM5IiwibmFtZSI6Ilh5bGVtIiwicm9sZSI6IkN1c3RvbXNQb3J0YWwiLCJuYmYiOjE3Mzc2MTY2MDgsImV4cCI6MTc0NTM2NjQwMCwiaWF0IjoxNzM3NjE2NjA4LCJpc3MiOiJodHRwczovL3RyYW5zcG9ydGx5c3FsYXBpdjIuYXp1cmV3ZWJzaXRlcy5uZXQiLCJhdWQiOiJodHRwczovL3RyYW5zcG9ydGx5c3FsYXBpdjIuYXp1cmV3ZWJzaXRlcy5uZXQifQ.k7yB5Z2MDZcW4U-JrB4A61dbGG4rzdnB8tjusbLtcpY"
 TARKETT_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQiLCJjb21wYW55SWQiOiIxMTg4IiwibmFtZSI6IlRhcmtldHQiLCJyb2xlIjoiQ3VzdG9tc1BvcnRhbCIsIm5iZiI6MTczNzYxNjU3MywiZXhwIjoxNzQ1MzY2NDAwLCJpYXQiOjE3Mzc2MTY1NzMsImlzcyI6Imh0dHBzOi8vdHJhbnNwb3J0bHlzcWxhcGl2Mi5henVyZXdlYnNpdGVzLm5ldCIsImF1ZCI6Imh0dHBzOi8vdHJhbnNwb3J0bHlzcWxhcGl2Mi5henVyZXdlYnNpdGVzLm5ldCJ9.RDGKCmBxgyyqMoPaYiQt_5CulL8dz3Uc2_IiR08EeaA"
@@ -106,7 +105,7 @@ def download_blob_folder(sas_url, pickup_id, output_directory, max_workers=8):
 
 
 # Function to convert PDF to images
-def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=500):
+def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=200):
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
     image_paths = {}
@@ -148,7 +147,7 @@ def convert_to_order_structure(properties):
     
 
     def clean_number(value: str) -> str:
-        value = value.replace(" ", "")  
+        value = value.strip()
         value = value.replace("(", "")
         value = value.replace(")", "")
         return value
@@ -197,7 +196,8 @@ def convert_to_order_structure(properties):
         "OrderItems": order_items,
         "NetWeight": pick_value("NetWeight"),
         "ActualFreight": pick_value("ActualFreight"),
-        "NumberOfUnits": pick_value("NumberOfUnits")
+        "NumberOfUnits": pick_value("NumberOfUnits"),
+        "OtherAmount": pick_value("OtherAmount")
     }, FIELDS_TO_REMOVE)
 
 
@@ -253,7 +253,8 @@ def create_raw_data(pickup_id, company, json_dir, image_paths):
                                 "TermsOfDelCode": "",
                                 "OrderItems": [],
                                 "NetWeight": "",
-                                "NumberOfUnits": ""
+                                "NumberOfUnits": "",
+                                "OtherAmount": ""
                             }
                 page_wise_data[page_number] = order_copy
             page_wise_data[page_number].get("OrderItems").append(item)
@@ -296,11 +297,14 @@ def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_
     tasks = []
 
     for pickup_id in pickup_ids:
-        pdf_folder = os.path.join(pdf_output_dir, pickup_id)
-        for pdf_file in os.listdir(pdf_folder):
-            if pdf_file.endswith(".pdf"):
-                pdf_path = os.path.join(pdf_folder, pdf_file)
-                tasks.append((pickup_id, pdf_path))
+        try:
+            pdf_folder = os.path.join(pdf_output_dir, pickup_id)
+            for pdf_file in os.listdir(pdf_folder):
+                if pdf_file.endswith(".pdf"):
+                    pdf_path = os.path.join(pdf_folder, pdf_file)
+                    tasks.append((pickup_id, pdf_path))
+        except Exception as e:
+            print(e)
 
     image_paths_map = {}
 
