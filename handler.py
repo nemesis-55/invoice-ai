@@ -14,7 +14,7 @@ from peft import PeftModel
 MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5.2"
-model_dir = "/runpod-volume/cache"
+cache = "/runpod-volume/cache"
 login("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")
 
 # Load Model and Tokenizer
@@ -28,7 +28,7 @@ def load_model_and_tokenizer():
             MODEL_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
-            trust_remote_code=True, torch_dtype=torch.bfloat16
+            trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache
         )
 
         print("Loading LoRA adapter...")
@@ -37,7 +37,7 @@ def load_model_and_tokenizer():
             ADAPTOR_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
-            trust_remote_code=True, torch_dtype=torch.bfloat16
+            trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache
         ).eval()
 
         print("Model Loading Complete")
