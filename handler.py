@@ -61,7 +61,7 @@ def extract_text_from_image(pdf_bytes, dpi=MODEL_DPI):
         raise RuntimeError(f"Error during text extraction: {e}")
 
 # Generate Detailed Prompt
-def generate_prompt(pdf_bytes, ocr_data):
+def generate_prompt(pdf_bytes):
     """Create the detailed prompt for the model."""
     try:
         image = pdf_to_image(pdf_bytes)
@@ -135,18 +135,13 @@ def run(request):
     try:
         input_data = request.get("input", {})
         pdf_data = input_data.get("pdf_data")
-        ocr_data = input_data.get("ocr_data")
 
         if not pdf_data:
             return {"error": "Missing PDF data."}
 
         pdf_bytes = base64.b64decode(pdf_data)
 
-        if not ocr_data:
-            print("No OCR data provided. Extracting...")
-            ocr_data = extract_text_from_image(pdf_bytes, 600)
-
-        prompt = generate_prompt(pdf_bytes, ocr_data)
+        prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
         return {"response": response}
     except Exception as e:
