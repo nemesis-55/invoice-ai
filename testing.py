@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 # API endpoint and headers
-endpoint_id = 'n7h9g3pw2qmvbm'
+endpoint_id = 'umpxv7k7dhzith'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
@@ -52,7 +52,10 @@ def make_post_request(pdf_bytes: bytes):
     }
 
     print(f"Sending POST request with PDF bytes...")
-    response = requests.post(post_url, headers=headers, json=post_data)
+    try:
+        response = requests.post(post_url, headers=headers, json=post_data)
+    except Exception as e:
+        print(e)
     response_data = response.json()
     task_id = response_data['id']
     print(f"Received Task ID: {task_id}")
@@ -133,18 +136,18 @@ def process_pdf(file_path, pages_to_process, pickup_id):
 
 if __name__ == "__main__":
     # Path to your PDF file
-    output_file_path = "./data/model_output_tarket_testing_without_ocr_200dpi.json"
+    output_file_path = "./data/model_output.json"
 
     pdf_data = [
         {
-            "pdf_file_path":"/Users/saurav.kumar3/Downloads/4670MKJHGFT_20241016080002_20250321234226.pdf",
+            "pdf_file_path":"/Users/saurav.kumar3/Downloads/skannat_t033450_2025-03-31-08-07-26_20250331083159.pdf",
             "output_id": "tarket"
         }
     ]
 
 
     # Input for number of pages to process
-    pages_to_process = 30
+    pages_to_process = 10
 
     with ThreadPoolExecutor(max_workers=24) as executor:
         for data in pdf_data:
