@@ -12,7 +12,8 @@ from peft import PeftModel
 
 # Constants
 MODEL_DPI = 200
-MODEL_TYPE = "Zorro123444/invoice_extracter_5.1"
+MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
+ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5.1"
 model_dir = "/runpod-volume/cache"
 login("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")
 
@@ -22,8 +23,24 @@ def load_model_and_tokenizer():
     try:
         print("loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
-        print("loading model")
-        model = AutoModel.from_pretrained(MODEL_TYPE, device_map="auto", attn_implementation='sdpa', trust_remote_code=True, cache_dir=model_dir, torch_dtype=torch.bfloat16)
+        print("Loading base model...")
+        base_model = AutoModel.from_pretrained(
+            MODEL_TYPE,
+            device_map="auto",
+            attn_implementation="sdpa",
+            trust_remote_code=True, torch_dtype=torch.bfloat16
+        )
+
+        print("Loading LoRA adapter...")
+        model = PeftModel.from_pretrained(
+            base_model,
+            ADAPTOR_TYPE,
+            device_map="auto",
+            attn_implementation="sdpa",
+            trust_remote_code=True, torch_dtype=torch.bfloat16
+        ).cuda().eval()
+
+        print("Model Loading Complete")
         return model, tokenizer
     except Exception as e:
         print(f"exception: {e}")
