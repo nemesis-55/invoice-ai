@@ -13,7 +13,7 @@ from peft import PeftModel
 # Constants
 MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "Zorro123444/invoice_extracter_5.2"
+ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
 cache = "/runpod-volume/cache"
 login("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")
 
@@ -26,18 +26,22 @@ def load_model_and_tokenizer():
         print("Loading base model...")
         base_model = AutoModel.from_pretrained(
             MODEL_TYPE,
-            device_map="cuda",
+            device_map="auto",
             attn_implementation="sdpa",
-            trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache
+            trust_remote_code=True, 
+            torch_dtype=torch.bfloat16, 
+            cache_dir=cache
         )
 
         print("Loading LoRA adapter...")
         model = PeftModel.from_pretrained(
             base_model,
             ADAPTOR_TYPE,
-            device_map="cuda",
+            device_map="auto",
             attn_implementation="sdpa",
-            trust_remote_code=True, torch_dtype=torch.bfloat16, cache_dir=cache
+            trust_remote_code=True, 
+            torch_dtype=torch.bfloat16, 
+            cache_dir=cache
         ).eval()
 
         print("Model Loading Complete")
@@ -102,6 +106,7 @@ def generate_prompt(pdf_bytes):
             "  \"ReceiverCountry\": \"<string>\",\n"
             "  \"SellerName\": \"<string>\",\n"
             "  \"NetAmount\": \"<string>\",\n"
+            "  \"GrossWeight\": \"<string>\",\n"
             "  \"OrderDate\": \"<YYYY-MM-DD>\",\n"
             "  \"Currency\": \"<string>\",\n"
             "  \"TermsOfDelCode\": \"<string>\",\n"
@@ -139,7 +144,7 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
