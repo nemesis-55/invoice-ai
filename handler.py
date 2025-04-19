@@ -16,7 +16,7 @@ MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
 cache = "/runpod-volume/cache"
-login(os.environ("HF_TOKEN"))
+login(os.getenv("HF_TOKEN"))
 
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
