@@ -23,8 +23,8 @@ export ORDER_ITEM_FIELDS="Description,HsCode,HsCodeExport,Quantity,ArticleNumber
 export MAX_WORKERS="100"
 
 # Python scripts
-RAW_DATA_SCRIPT="create_raw_data.py"
-TRAINING_SCRIPT="create_training_data.py"
+RAW_DATA_SCRIPT="./prepare_data/create_raw_data.py"
+TRAINING_SCRIPT="./prepare_data/create_training_data.py"
 
 # --------- EXECUTION ---------
 echo "Step 1: Running raw data extraction script..."

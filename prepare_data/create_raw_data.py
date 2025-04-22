@@ -162,11 +162,22 @@ def process_single_pdf(pickup_id, pdf_path, image_output_dir):
 
 def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_json_path, max_workers=8):
     tasks = []
+    skipped_pickup_ids = set()
+
     for pickup_id in pickup_ids:
         pdf_folder = os.path.join(pdf_output_dir, pickup_id)
-        if os.path.exists(pdf_folder):
-            tasks.extend((pickup_id, os.path.join(pdf_folder, file))
-                         for file in os.listdir(pdf_folder) if file.endswith(".pdf"))
+        if not os.path.exists(pdf_folder):
+            continue
+
+        pdf_files = [file for file in os.listdir(pdf_folder) if file.endswith(".pdf")]
+
+        if len(pdf_files) > 1:
+            print(f"Warning: Multiple PDFs found for Pickup ID {pickup_id}. Skipping...")
+            skipped_pickup_ids.add(pickup_id)
+            continue
+
+        if pdf_files:
+            tasks.append((pickup_id, os.path.join(pdf_folder, pdf_files[0])))
 
     image_paths_map = {}
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -181,12 +192,14 @@ def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_
     with open(output_json_path, "w", encoding="utf-8") as f:
         json.dump(image_paths_map, f, indent=4)
 
+    return image_paths_map, skipped_pickup_ids
+
 if __name__ == "__main__":
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for pickup_id in PICKUP_IDS:
             executor.submit(download_blob_folder, BLOB_URL, pickup_id, "./data")
 
-    parallel_pdf_to_images(
+    (image_paths_map, skipped_pickup_ids) = parallel_pdf_to_images(
         pickup_ids=PICKUP_IDS,
         pdf_output_dir=PDF_OUTPUT_DIR,
         image_output_dir=IMAGE_OUTPUT_DIR,
@@ -194,10 +207,10 @@ if __name__ == "__main__":
         max_workers=8
     )
 
-    with open("./data/image_path_map.json", "r", encoding="utf-8") as file:
-        image_paths_map = json.load(file)
-
     for pickup_id in PICKUP_IDS:
+        if pickup_id in skipped_pickup_ids:
+            print(f"Skipping raw data creation for Pickup ID {pickup_id} due to multiple PDFs.")
+            continue
         create_raw_data(pickup_id, EXTRACTED_OUTPUT_DIR, image_paths_map)
 
     with open(RAW_DATA_OUTPUT, "w", encoding="utf-8") as f:
