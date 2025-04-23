@@ -2,7 +2,6 @@ import base64
 import torch
 from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
-import pytesseract
 from transformers import AutoTokenizer, AutoModel
 import runpod
 from huggingface_hub import login
@@ -63,24 +62,10 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
             raise ValueError("The PDF does not contain any pages.")
         page = pdf_document.load_page(0)
         pix = page.get_pixmap(matrix=matrix)
-        mode = "RGBA" if pix.alpha else "RGB"
-        return Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        return Image.frombytes("L", [pix.width, pix.height], pix.samples)
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
         raise ValueError(f"Error converting PDF to image: {e}")
-
-
-# Extract Text using OCR
-def extract_text_from_image(pdf_bytes, dpi=MODEL_DPI):
-    """Extract text from an image derived from the PDF."""
-    try:
-        image = pdf_to_image(pdf_bytes, dpi)
-        text = pytesseract.image_to_string(image)
-        print(f"Extracted text length: {len(text)} characters.")
-        return text
-    except Exception as e:
-        print(f"Error during text extraction: {e}")
-        raise RuntimeError(f"Error during text extraction: {e}")
 
 # Generate Detailed Prompt
 def generate_prompt(pdf_bytes):
@@ -145,7 +130,7 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
