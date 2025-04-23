@@ -11,7 +11,7 @@ from peft import PeftModel
 import os
 
 # Constants
-MODEL_DPI = 100
+MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
 cache = "/runpod-volume/cache"
@@ -63,7 +63,10 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
         page = pdf_document.load_page(0)
         pix = page.get_pixmap(matrix=matrix)
         mode = "RGBA" if pix.alpha else "RGB"
-        return Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        
+        image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        image = image.convert("L")
+        return image
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
         raise ValueError(f"Error converting PDF to image: {e}")
