@@ -11,7 +11,7 @@ from peft import PeftModel
 import os
 
 # Constants
-MODEL_DPI = 100
+MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
 cache = "/runpod-volume/cache"
@@ -22,27 +22,16 @@ def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
         print("loading tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading base model...")
         base_model = AutoModel.from_pretrained(
-            MODEL_TYPE,
-            device_map="cuda",
-            attn_implementation="sdpa",
-            trust_remote_code=True, 
-            torch_dtype=torch.bfloat16, 
-            cache_dir=cache
-        )
-
-        print("Loading LoRA adapter...")
-        model = PeftModel.from_pretrained(
-            base_model,
             ADAPTOR_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
             trust_remote_code=True, 
             torch_dtype=torch.bfloat16, 
             cache_dir=cache
-        ).eval()
+        )
 
         print("Model Loading Complete")
         return model, tokenizer
