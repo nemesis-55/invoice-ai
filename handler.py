@@ -11,7 +11,7 @@ from peft import PeftModel
 import os
 
 # Constants
-MODEL_DPI = 100
+MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
 cache = "/runpod-volume/cache"
