@@ -56,12 +56,8 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
     try:
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
-        zoom = dpi / 72  # 72 dpi is the default resolution
-        matrix = fitz.Matrix(zoom, zoom)
-        if len(pdf_document) < 1:
-            raise ValueError("The PDF does not contain any pages.")
         page = pdf_document.load_page(0)
-        pix = page.get_pixmap(matrix=matrix)
+        pix = page.get_pixmap(dpi=dpi)
         mode = "RGBA" if pix.alpha else "RGB"
         
         image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
