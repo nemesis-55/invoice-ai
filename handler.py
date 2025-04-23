@@ -62,7 +62,8 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
             raise ValueError("The PDF does not contain any pages.")
         page = pdf_document.load_page(0)
         pix = page.get_pixmap(matrix=matrix)
-        return Image.frombytes("L", [pix.width, pix.height], pix.samples)
+        mode = "RGBA" if pix.alpha else "RGB"
+        return Image.frombytes(mode, [pix.width, pix.height], pix.samples)
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
         raise ValueError(f"Error converting PDF to image: {e}")
