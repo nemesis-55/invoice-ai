@@ -26,7 +26,7 @@ def load_model_and_tokenizer():
         print("Loading base model...")
         base_model = AutoModel.from_pretrained(
             MODEL_TYPE,
-            device_map="auto",
+            device_map="cuda",
             attn_implementation="sdpa",
             trust_remote_code=True, 
             torch_dtype=torch.bfloat16, 
@@ -37,7 +37,7 @@ def load_model_and_tokenizer():
         model = PeftModel.from_pretrained(
             base_model,
             ADAPTOR_TYPE,
-            device_map="auto",
+            device_map="cuda",
             attn_implementation="sdpa",
             trust_remote_code=True, 
             torch_dtype=torch.bfloat16, 
