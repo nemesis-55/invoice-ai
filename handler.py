@@ -11,7 +11,7 @@ from peft import PeftModel
 import os
 
 # Constants
-MODEL_DPI = 200
+MODEL_DPI = 300
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
 cache = "/runpod-volume/cache"
@@ -57,11 +57,12 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     try:
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = pdf_document.load_page(0)
-        pix = page.get_pixmap(dpi=dpi)
+        zoom = dpi / 72  # 72 is the default resolution
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat, alpha=False)
         mode = "RGBA" if pix.alpha else "RGB"
         
         image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
-        image = image.convert("L")
         return image
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
