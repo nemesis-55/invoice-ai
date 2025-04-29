@@ -130,7 +130,7 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=2048)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
