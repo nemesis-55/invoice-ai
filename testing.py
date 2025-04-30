@@ -2,23 +2,21 @@ import requests
 import time
 import base64
 import fitz  # PyMuPDF
-import os
 import json
 from concurrent.futures import ThreadPoolExecutor
-
+from helper.order_csv_utils import convert_csv_to_order_json_string
 
 # API endpoint and headers
-endpoint_id = 'umpxv7k7dhzith'
+endpoint_id = '0b4exz438p3kxo'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
 headers = {
     'Content-Type': 'application/json',
-    'Authorization': 'rpa_IVK8I095G3K2YB26IJ39Y5W5WXRVMBCQ0EASQ8ECg4rvx9',
+    'Authorization': 'rpa_474U9IHJBUA0AM2ZVA0YKNJRALC9B1K4OXZ79AV017q9z6',
 }
 
 final_response = {}
-
 
 def page_to_pdf_bytes(page):
     """
@@ -122,7 +120,7 @@ def process_pdf(file_path, pages_to_process, pickup_id):
                         complete_response[page_number] = json.loads(response_data.get('output').get('response'))
                     except Exception as e:
                         print(f"failure while converting taskId:{task_id} page_num: {page_number} response: {response_data.get('output')}")
-                        complete_response[page_number] = response_data.get('output').get('response')
+                        complete_response[page_number] = convert_csv_to_order_json_string(response_data.get('output').get('response'))
                     del tasks[task_id]  # Remove the completed task from the dictionary
                 else:
                     print(f"Task {task_id} is still in progress (status: {status}). Waiting 1 minute...")
@@ -136,12 +134,12 @@ def process_pdf(file_path, pages_to_process, pickup_id):
 
 if __name__ == "__main__":
     # Path to your PDF file
-    output_file_path = "./data/model_output.json"
+    output_file_path = "model_output.json"
 
     pdf_data = [
         {
-            "pdf_file_path":"/Users/saurav.kumar3/Downloads/skannat_t033450_2025-03-31-08-07-26_20250331083159.pdf",
-            "output_id": "tarket"
+            "pdf_file_path":"C:/Users/arind/Downloads/S1_20250416174729_20250422043835-1.pdf",
+            "output_id": "schou"
         }
     ]
 

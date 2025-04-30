@@ -1,10 +1,14 @@
 import os
 import json
+import sys
 from urllib.parse import urlparse
 from azure.storage.blob import BlobServiceClient
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import fitz  # PyMuPDF
 from PIL import Image
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from helper.order_csv_utils import convert_order_to_csv_string, convert_csv_to_order_json_string
 
 # Constants
 BLOB_URL = os.environ["BLOB_URL"]
@@ -152,9 +156,12 @@ def create_raw_data(pickup_id, json_dir, image_paths):
         if matching_json_file:
             extracted_data = load_json(matching_json_file)
             properties = extracted_data.get("Properties", {})
+
+        csv_string = (convert_order_to_csv_string(convert_to_order_structure(properties)))
+        
         raw_data[pickup_id][page_num] = {
             "image_path": image_path,
-            "data": convert_to_order_structure(properties)
+            "data": csv_string,
         }
 
 def process_single_pdf(pickup_id, pdf_path, image_output_dir):

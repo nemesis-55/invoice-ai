@@ -1,3 +1,4 @@
+import sys
 import base64
 import torch
 from PIL import Image
@@ -9,6 +10,10 @@ import base64
 import fitz  # PyMuPDF
 from peft import PeftModel
 import os
+
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from helper.order_csv_utils import convert_csv_to_order_json_string
 
 # Constants
 MODEL_DPI = 300
@@ -74,57 +79,29 @@ def generate_prompt(pdf_bytes):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
-            "Extract key fields from the invoice image and return a JSON object in the following format.\n"
-            "If a value is not present, use an empty string \"\".\n"
-            "Do not change or format any values — extract them exactly as shown in the image.\n"
-            "Output only the JSON object, without any additional text.\n\n"
-            "{\n"
-            "  \"OrderNumber\": \"<string>\",\n"
-            "  \"InvoiceNumber\": \"<string>\",\n"
-            "  \"BuyerName\": \"<string>\",\n"
-            "  \"BuyerAddress1\": \"<string>\",\n"
-            "  \"BuyerZipCode\": \"<string>\",\n"
-            "  \"BuyerCity\": \"<string>\",\n"
-            "  \"BuyerCountry\": \"<string>\",\n"
-            "  \"ReceiverName\": \"<string>\",\n"
-            "  \"ReceiverAddress1\": \"<string>\",\n"
-            "  \"ReceiverZipCode\": \"<string>\",\n"
-            "  \"ReceiverCity\": \"<string>\",\n"
-            "  \"ReceiverCountry\": \"<string>\",\n"
-            "  \"SellerName\": \"<string>\",\n"
-            "  \"NetAmount\": \"<string>\",\n"
-            "  \"GrossWeight\": \"<string>\",\n"
-            "  \"OrderDate\": \"<YYYY-MM-DD>\",\n"
-            "  \"Currency\": \"<string>\",\n"
-            "  \"TermsOfDelCode\": \"<string>\",\n"
-            "  \"ActualFreight\": \"<string>\",\n"
-            "  \"OrderItems\": [\n"
-            "    {\n"
-            "      \"Description\": \"<string>\",\n"
-            "      \"HsCode\": \"<string>\",\n"
-            "      \"HsCodeExport\": \"<string>\",\n"
-            "      \"Quantity\": \"<string>\",\n"
-            "      \"ArticleNumber\": \"<string>\",\n"
-            "      \"GrossWeight\": \"<string>\",\n"
-            "      \"NetWeight\": \"<string>\",\n"
-            "      \"CountryOfOrigin\": \"<string>\",\n"
-            "      \"NumberOfUnits\": \"<string>\",\n"
-            "      \"TypeOfUnit\": \"<string>\",\n"
-            "      \"PricePerPiece\": \"<string>\",\n"
-            "      \"NetAmount\": \"<string>\"\n"
-            "    }\n"
-            "  ],\n"
-            "  \"NetWeight\": \"<string>\",\n"
-            "  \"OtherAmount\": \"<string>\",\n"
-            "  \"NumberOfUnits\": \"<string>\"\n"
-            "}\n"
+            "You are given an image of an invoice.\n"
+            "Extract and return the data as a CSV-formatted string where each row represents a single item from the invoice.\n\n"
+            "Instructions:\n"
+            "- Use commas as separators.\n"
+            "- Include a header row with the field names listed below.\n"
+            "- Repeat the order-level fields for each item row.\n"
+            "- Use appropriate unicode values for special characters (e.g., Å, Ø, É) \n"
+            "- If a value is missing or not visible, use an empty string \"\".\n"
+            "- Do not add any commentary or formatting — return only the CSV content.\n\n"
+            "CSV Columns:\n"
+            "OrderNumber,InvoiceNumber,BuyerName,BuyerAddress1,BuyerZipCode,BuyerCity,BuyerCountry,"
+            "ReceiverName,ReceiverAddress1,ReceiverZipCode,ReceiverCity,ReceiverCountry,"
+            "SellerName,OrderDate,Currency,TermsOfDelCode,ActualFreight,NumberOfUnits,OtherAmount,"
+            "Description,HsCode,HsCodeExport,Quantity,ArticleNumber,GrossWeight,NetWeight,"
+            "CountryOfOrigin,TypeOfUnit,PricePerPiece,NetAmount,OrderLevelNetAmount,"
+            "OrderLevelNetWeight,OrderLevelGrossWeight\n\n"
+            "Return the CSV string only."
         )
         
         return [{"role": "user", "content": [image, question]}]
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
-
 
 # Handle Inference
 def perform_inference(messages, model, tokenizer):
@@ -151,7 +128,8 @@ def run(request):
 
         prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
-        return {"response": response}
+        json_response = convert_csv_to_order_json_string(response)
+        return {"response": json_response}
     except Exception as e:
         print(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
