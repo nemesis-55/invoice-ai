@@ -1,4 +1,3 @@
-import sys
 import base64
 import torch
 from PIL import Image
@@ -10,13 +9,10 @@ import base64
 import fitz  # PyMuPDF
 from peft import PeftModel
 import os
-
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from helper.order_csv_utils import convert_csv_to_order_json_string
+from helper.order_csv_utils import expand_order_items_csv_to_list
 
 # Constants
-MODEL_DPI = 300
+MODEL_DPI = 200
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
 cache = "/runpod-volume/cache"
@@ -62,12 +58,11 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     try:
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = pdf_document.load_page(0)
-        zoom = dpi / 72  # 72 is the default resolution
-        mat = fitz.Matrix(zoom, zoom)
-        pix = page.get_pixmap(matrix=mat, alpha=False)
+        pix = page.get_pixmap(dpi=dpi)
         mode = "RGBA" if pix.alpha else "RGB"
         
         image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        image = image.convert("L")
         return image
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
@@ -85,17 +80,17 @@ def generate_prompt(pdf_bytes):
             "- Use commas as separators.\n"
             "- Include a header row with the field names listed below.\n"
             "- Repeat the order-level fields for each item row.\n"
-            "- Use appropriate unicode values for special characters (e.g., Å, Ø, É) \n"
+            "- Preserve special characters exactly as shown (e.g., Å, Ø, É).\n"
             "- If a value is missing or not visible, use an empty string \"\".\n"
             "- Do not add any commentary or formatting — return only the CSV content.\n\n"
             "CSV Columns:\n"
             "OrderNumber,InvoiceNumber,BuyerName,BuyerAddress1,BuyerZipCode,BuyerCity,BuyerCountry,"
             "ReceiverName,ReceiverAddress1,ReceiverZipCode,ReceiverCity,ReceiverCountry,"
-            "SellerName,OrderDate,Currency,TermsOfDelCode,ActualFreight,NumberOfUnits,OtherAmount,"
+            "SellerName,NetAmount,OrderDate,Currency,TermsOfDelCode,ActualFreight,"
             "Description,HsCode,HsCodeExport,Quantity,ArticleNumber,GrossWeight,NetWeight,"
-            "CountryOfOrigin,TypeOfUnit,PricePerPiece,NetAmount,OrderLevelNetAmount,"
-            "OrderLevelNetWeight,OrderLevelGrossWeight\n\n"
-            "Return the CSV string only."
+            "CountryOfOrigin,NumberOfUnits,TypeOfUnit,PricePerPiece,ItemNetAmount,"
+            "TotalNetWeight,OtherAmount,TotalNumberOfUnits\n"
+            "\nReturn the CSV string only."
         )
         
         return [{"role": "user", "content": [image, question]}]
@@ -108,7 +103,7 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=2048)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
@@ -128,7 +123,7 @@ def run(request):
 
         prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
-        json_response = convert_csv_to_order_json_string(response)
+        json_response = expand_order_items_csv_to_list(response)
         return {"response": json_response}
     except Exception as e:
         print(f"Exception during processing: {e}")

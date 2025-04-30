@@ -4,7 +4,7 @@ import base64
 import fitz  # PyMuPDF
 import json
 from concurrent.futures import ThreadPoolExecutor
-from helper.order_csv_utils import convert_csv_to_order_json_string
+from helper.order_csv_utils import embed_order_items_csv_in_json
 
 # API endpoint and headers
 endpoint_id = '0b4exz438p3kxo'
@@ -120,7 +120,7 @@ def process_pdf(file_path, pages_to_process, pickup_id):
                         complete_response[page_number] = json.loads(response_data.get('output').get('response'))
                     except Exception as e:
                         print(f"failure while converting taskId:{task_id} page_num: {page_number} response: {response_data.get('output')}")
-                        complete_response[page_number] = convert_csv_to_order_json_string(response_data.get('output').get('response'))
+                        complete_response[page_number] = embed_order_items_csv_in_json(response_data.get('output').get('response'))
                     del tasks[task_id]  # Remove the completed task from the dictionary
                 else:
                     print(f"Task {task_id} is still in progress (status: {status}). Waiting 1 minute...")
