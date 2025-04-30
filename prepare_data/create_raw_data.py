@@ -33,7 +33,7 @@ def load_json(file_path):
             print(f"Error loading JSON: {e}")
             return {}
 
-def download_blob_folder(sas_url, pickup_id, output_directory, max_workers=8):
+def download_blob_folder(sas_url, pickup_id, output_directory, max_workers=MAX_WORKERS):
     url_parts = urlparse(sas_url)
     account_url = f"https://{url_parts.netloc}"
     container_name = url_parts.path.split('/')[1]
@@ -62,7 +62,7 @@ def download_blob_folder(sas_url, pickup_id, output_directory, max_workers=8):
         except Exception as e:
             return f"Failed to download {blob_name}: {e}"
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = [executor.submit(download_blob, blob) for blob in blobs]
         for future in as_completed(futures):
             result = future.result()
@@ -77,6 +77,7 @@ def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=200):
         page = pdf_document.load_page(page_num)
         pix = page.get_pixmap(dpi=dpi)
         image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        image = image.convert("L")
         image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
         image.save(image_path)
         image_paths[str(page_num + 1)] = image_path
@@ -103,6 +104,7 @@ def convert_to_order_structure(properties):
         return "" if val in [None, "null"] else val
 
     def clean_field(key, val):
+        val="" if val in [None, "null"] else val
         if key == "HsCode":
             val = clean_hscode(val)
         if key in ["ArticleNumber", "GrossWeight", "NetWeight", "NumberOfUnits", "NetAmount", "PricePerPiece"]:
@@ -132,6 +134,7 @@ def convert_to_order_structure(properties):
         "TermsOfDelCode": pick_value("TermsOfDelCode"),
         "OrderItems": map_order_items(properties.get("OrderItems", [])),
         "NetWeight": pick_value("NetWeight"),
+        "GrossWeight": pick_value("GrossWeight"),
         "ActualFreight": pick_value("ActualFreight"),
         "NumberOfUnits": pick_value("NumberOfUnits"),
         "OtherAmount": pick_value("OtherAmount")
@@ -150,12 +153,12 @@ def create_raw_data(pickup_id, json_dir, image_paths):
         matching_json_file = next(
             (os.path.join(root, file)
              for root, _, files in os.walk(json_root)
-             for file in files if file.startswith(f"{page_num}_") and file.endswith(".json")),
+             for file in files if (file.startswith(f"{page_num}_") or file.startswith(f"xyz {page_num}_")) and file.endswith(".json")),
             None
         )
         if matching_json_file:
             extracted_data = load_json(matching_json_file)
-            properties = extracted_data.get("Properties", {})
+            properties = extracted_data.get("Properties", extracted_data.get("extracted_data", {}).get("Properties", {}))
         
         raw_data[pickup_id][page_num] = {
             "image_path": image_path,
@@ -165,7 +168,7 @@ def create_raw_data(pickup_id, json_dir, image_paths):
 def process_single_pdf(pickup_id, pdf_path, image_output_dir):
     return pickup_id, convert_pdf_to_images(pickup_id, pdf_path, image_output_dir)
 
-def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_json_path, max_workers=8):
+def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_json_path, max_workers=MAX_WORKERS):
     tasks = []
     skipped_pickup_ids = set()
 
@@ -185,7 +188,7 @@ def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_
             tasks.append((pickup_id, os.path.join(pdf_folder, pdf_files[0])))
 
     image_paths_map = {}
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+    with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = [executor.submit(process_single_pdf, pid, path, image_output_dir) for pid, path in tasks]
         for future in as_completed(futures):
             try:

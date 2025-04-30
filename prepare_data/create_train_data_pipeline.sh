@@ -5,7 +5,7 @@
 export BLOB_URL="https://saascustomsportalstorage.blob.core.windows.net/pickupfiles?sp=rli&st=2025-01-16T15:04:44Z&se=2026-01-16T23:04:44Z&sv=2022-11-02&sr=c&sig=GmbLCUpv%2F7TsLxvzWS0Y%2BEfYlcHxtxTzgz4hwHJN12c%3D"
 
 # Pickup IDs (comma separated)
-export PICKUP_IDS="143419"
+export PICKUP_IDS="159950,158192,157779,156489,156294"
 
 # Directory paths
 export PDF_OUTPUT_DIR="./data/pdf"
@@ -20,7 +20,7 @@ export FIELDS_TO_REMOVE="PageNumber,ItemNumber"
 export ORDER_ITEM_FIELDS="Description,HsCode,HsCodeExport,Quantity,ArticleNumber,GrossWeight,NetWeight,CountryOfOrigin,NumberOfUnits,TypeOfUnit,PricePerPiece,NetAmount"
 
 # Max workers
-export MAX_WORKERS="100"
+export MAX_WORKERS="8"
 
 # Python scripts
 RAW_DATA_SCRIPT="./prepare_data/create_raw_data.py"
