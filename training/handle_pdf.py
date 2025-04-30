@@ -33,7 +33,7 @@ def save_pdf_page_as_image(pickup_id, page_num, page, image_output_dir, dpi):
     print(f"Saved: {image_path}")
 
 
-def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=100):
+def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
     image_paths = {}
@@ -59,11 +59,11 @@ if __name__ == "__main__":
     pdf_connection_string = "https://saascustomsportalstorage.blob.core.windows.net/pickupfiles?sp=rli&st=2025-01-16T15:04:44Z&se=2026-01-16T23:04:44Z&sv=2022-11-02&sr=c&sig=GmbLCUpv%2F7TsLxvzWS0Y%2BEfYlcHxtxTzgz4hwHJN12c%3D"
     pickup_ids = ["116083"]
     base_output_directory = "./data/pdf"
-    image_dir = "./data/image_test"
+    image_dir = "./data/image"
 
-    # with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-    #     for pickup_id in pickup_ids:
-    #         executor.submit(download_blob_folder, pdf_connection_string, pickup_id, base_output_directory)
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        for pickup_id in pickup_ids:
+            executor.submit(download_blob_folder, pdf_connection_string, pickup_id, base_output_directory)
 
     for pickup_id in pickup_ids:
         pdf_folder = os.path.join(base_output_directory, pickup_id)
