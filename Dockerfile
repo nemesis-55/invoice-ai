@@ -22,6 +22,7 @@ COPY requirements.txt ./
 
 # Copy the handler.py file into the container
 COPY handler.py .
+COPY helper/ ./helper/
 
 RUN pip install --no-cache-dir -r requirements.txt
 
