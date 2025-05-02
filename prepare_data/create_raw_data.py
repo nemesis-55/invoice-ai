@@ -198,7 +198,7 @@ def parallel_pdf_to_images(pickup_ids, pdf_output_dir, image_output_dir, output_
                 print(f"Failed to process a PDF: {e}")
 
     with open(output_json_path, "w", encoding="utf-8") as f:
-        json.dump(image_paths_map, f, indent=4)
+        json.dump(image_paths_map, f)
 
     return image_paths_map, skipped_pickup_ids
 
@@ -222,6 +222,6 @@ if __name__ == "__main__":
         create_raw_data(pickup_id, EXTRACTED_OUTPUT_DIR, image_paths_map)
 
     with open(RAW_DATA_OUTPUT, "w", encoding="utf-8") as f:
-        json.dump(raw_data, f, indent=4)
+        json.dump(raw_data, f)
 
     print("Raw data creation complete.")

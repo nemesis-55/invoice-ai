@@ -48,6 +48,8 @@ def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
         mode = "RGBA" if pix.alpha else "RGB"
         image = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
 
+        image = image.convert("L")  # Convert to grayscale
+
         image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
         image.save(image_path)
         image_paths[str(page_num + 1)] = image_path

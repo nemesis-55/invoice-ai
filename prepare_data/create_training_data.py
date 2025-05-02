@@ -42,6 +42,7 @@ PROMPT_TEMPLATE = (
     "  \"ActualFreight\": \"<string>\",\n"
     "  \"OrderItemsCSV\": \"<CSV string with header and rows, escaped with \\n>\",\n"
     "  \"NetWeight\": \"<string>\",\n"
+    "   \"GrossWeight\": \"<string>\",\n"
     "  \"OtherAmount\": \"<string>\",\n"
     "  \"NumberOfUnits\": \"<string>\"\n"
     "}\n"
@@ -57,7 +58,7 @@ def process_page(pickup_id, page_num, data):
             "image": image_path,
             "conversations": [
                 {"role": "user", "content": PROMPT_TEMPLATE},
-                {"role": "assistant", "content": json.dumps(properties, indent=4)}
+                {"role": "assistant", "content": json.dumps(properties, indent=1)}
             ]
         }
     except Exception as e:
