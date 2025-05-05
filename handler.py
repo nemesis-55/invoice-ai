@@ -23,7 +23,7 @@ def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
         print("loading tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_TYPE, trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading base model...")
         base_model = AutoModel.from_pretrained(
             MODEL_TYPE,
@@ -123,7 +123,7 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
