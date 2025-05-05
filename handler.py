@@ -76,7 +76,6 @@ def generate_prompt(pdf_bytes):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
-            "<image>\n"
             "Extract the required fields from the invoice image and return only a JSON object in the following format.\n"
             "Use exact text from the image — do not reformat, normalize, or infer values.\n"
             "If a value is missing, set it to an empty string \"\".\n"
@@ -113,7 +112,7 @@ def generate_prompt(pdf_bytes):
             "}\n"
         )
         
-        return [{"role": "user", "content": [image, question]}]
+        return [{"role": "user", "content": question}]
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
@@ -123,7 +122,7 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
