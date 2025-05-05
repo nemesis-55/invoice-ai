@@ -122,7 +122,7 @@ def perform_inference(messages, model, tokenizer):
     try:
         with torch.no_grad():
             print("messages: ", messages)
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
             print("response: ", response)
         return response
     except Exception as e:
