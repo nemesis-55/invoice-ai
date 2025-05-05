@@ -6,7 +6,7 @@ NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6001
 
-MODEL="GothiaDigitalSolutions/invoice-extractor" # or openbmb/MiniCPM-V-2, openbmb/MiniCPM-Llama3-V-2_5
+MODEL="openbmb/MiniCPM-V-2_6" # or openbmb/MiniCPM-V-2, openbmb/MiniCPM-Llama3-V-2_5
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
 DATA="./data/train_data.json"
@@ -41,11 +41,11 @@ torchrun $DISTRIBUTED_ARGS finetune.py  \
     --tune_vision true \
     --tune_llm false \
     --use_lora true \
-    --lora_target_modules "llm\..*layers\.\d+\.self_attn\.(q_proj|k_proj|v_proj|o_proj)" \
+    --lora_target_modules "llm\..*layers\.\d+\.(self_attn\.(q_proj|k_proj|v_proj|o_proj)|mlp\.(gate_proj|up_proj|down_proj))" \
     --model_max_length $MODEL_MAX_Length \
     --max_slice_nums 9 \
-    --max_steps 2000 \
-    --eval_steps 200 \
+    --max_steps 10000 \
+    --eval_steps 1000 \
     --output_dir output/output__lora \
     --logging_dir output/output_lora \
     --logging_strategy "steps" \
@@ -56,7 +56,7 @@ torchrun $DISTRIBUTED_ARGS finetune.py  \
     --save_strategy "steps" \
     --save_steps 1000 \
     --save_total_limit 10 \
-    --learning_rate 1e-5 \
+    --learning_rate 5e-6 \
     --weight_decay 0.1 \
     --adam_beta2 0.95 \
     --warmup_ratio 0.01 \

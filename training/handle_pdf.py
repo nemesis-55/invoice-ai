@@ -25,31 +25,15 @@ def download_blob_folder(sas_url, folder_path, output_directory):
 
         print(f"Downloaded: {blob_name} to {local_file_path}")
 
-def save_pdf_page_as_image(pickup_id, page_num, page, image_output_dir, dpi):
-    """Process a single PDF page and save it as an image."""
-    pix = page.get_pixmap(dpi=dpi)
-    image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
-    Image.frombytes("RGB", [pix.width, pix.height], pix.samples).save(image_path)
-    print(f"Saved: {image_path}")
-
-
 def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
     image_paths = {}
-
-    zoom = dpi / 72  # 72 dpi is the default resolution
-    matrix = fitz.Matrix(zoom, zoom)
-
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
-        pix = page.get_pixmap(matrix=matrix)
-
+        pix = page.get_pixmap(dpi=dpi)
         mode = "RGBA" if pix.alpha else "RGB"
         image = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
-
-        image = image.convert("L")  # Convert to grayscale
-
         image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
         image.save(image_path)
         image_paths[str(page_num + 1)] = image_path

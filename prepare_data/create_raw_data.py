@@ -69,7 +69,7 @@ def download_blob_folder(sas_url, pickup_id, output_directory, max_workers=MAX_W
             if result:
                 print(result)
 
-def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=200):
+def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
     image_paths = {}
@@ -77,7 +77,6 @@ def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=200):
         page = pdf_document.load_page(page_num)
         pix = page.get_pixmap(dpi=dpi)
         image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        image = image.convert("L")
         image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
         image.save(image_path)
         image_paths[str(page_num + 1)] = image_path

@@ -14,7 +14,7 @@ from helper.order_csv_utils import expand_order_items_csv_to_list
 # Constants
 MODEL_DPI = 600
 MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
-ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor"
+ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-2.0"
 cache = "/runpod-volume/cache"
 login(os.getenv("HF_TOKEN"))
 
@@ -56,11 +56,9 @@ def load_model_and_tokenizer():
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
     try:
-        zoom = 20 # 72 dpi is the default resolution
-        matrix = fitz.Matrix(zoom, zoom)
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = pdf_document.load_page(0)
-        pix = page.get_pixmap(matrix = matrix)
+        pix = page.get_pixmap(dpi = dpi)
         mode = "RGBA" if pix.alpha else "RGB"
         image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
         return image
@@ -74,6 +72,7 @@ def generate_prompt(pdf_bytes):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
+            "<image>\n"
             "Extract the following fields from the invoice image and return a JSON object:\n"
             "- OrderNumber\n"
             "- InvoiceNumber\n"
@@ -101,18 +100,18 @@ def generate_prompt(pdf_bytes):
             "Respond with only the JSON object."
         )
         
-        return [{"role": "user", "content": [image, question]}]
+        return (image, [{"role": "user", "content": question}])
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
-def perform_inference(messages, model, tokenizer):
+def perform_inference(image, messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
             print("messages: ", messages)
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=image, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
             print("response: ", response)
         return response
     except Exception as e:
@@ -131,8 +130,8 @@ def run(request):
 
         pdf_bytes = base64.b64decode(pdf_data)
 
-        prompt = generate_prompt(pdf_bytes)
-        response = perform_inference(prompt, model, tokenizer)
+        (image, prompt) = generate_prompt(pdf_bytes)
+        response = perform_inference(image, prompt, model, tokenizer)
         json_response = expand_order_items_csv_to_list(response)
         return {"response": json_response}
     except Exception as e:

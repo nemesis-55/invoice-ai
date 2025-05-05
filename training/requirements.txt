@@ -3,7 +3,6 @@ torch==2.1.2
 torchvision==0.16.2
 transformers==4.44.2
 sentencepiece==0.1.99
-pytesseract
 runpod
 pymupdf
 huggingface_hub

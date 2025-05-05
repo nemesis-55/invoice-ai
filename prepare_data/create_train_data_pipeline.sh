@@ -15,12 +15,12 @@ export RAW_DATA_OUTPUT="./data/raw_data.json"
 export IMAGE_PATH_MAP="./data/image_path_map.json"
 export TRAIN_DATA_PATH="./data/train_data.json"
 export TEST_DATA_PATH="./data/test_data.json"
-export SPLIT_RATIO="0.25"
+export SPLIT_RATIO="0.8" # 80% train, 20% test
 export FIELDS_TO_REMOVE="PageNumber,ItemNumber"
 export ORDER_ITEM_FIELDS="Description,HsCode,HsCodeExport,Quantity,ArticleNumber,GrossWeight,NetWeight,CountryOfOrigin,NumberOfUnits,TypeOfUnit,PricePerPiece,NetAmount"
 
 # Max workers
-export MAX_WORKERS="8"
+export MAX_WORKERS="24"
 
 # Python scripts
 RAW_DATA_SCRIPT="./prepare_data/create_raw_data.py"

@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from helper.order_csv_utils import embed_order_items_csv_in_json
 
 # API endpoint and headers
-endpoint_id = '0b4exz438p3kxo'
+endpoint_id = 'xybkg1kpobos3q'
 post_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
 get_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/"
 
@@ -138,14 +138,14 @@ if __name__ == "__main__":
 
     pdf_data = [
         {
-            "pdf_file_path":"C:/Users/arind/Downloads/S1_20250416174729_20250422043835-1.pdf",
+            "pdf_file_path":"/Users/saurav.kumar3/Downloads/xylem avisera_20250402143152_20250408105647_20250419152734.pdf",
             "output_id": "schou"
         }
     ]
 
 
     # Input for number of pages to process
-    pages_to_process = 10
+    pages_to_process = 1
 
     with ThreadPoolExecutor(max_workers=24) as executor:
         for data in pdf_data:
