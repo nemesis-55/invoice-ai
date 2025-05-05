@@ -64,7 +64,6 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
         mode = "RGBA" if pix.alpha else "RGB"
         
         image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
-        image = image.convert("L")
         return image
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
@@ -122,7 +121,9 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            print("messages: ", messages)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=4096)
+            print("response: ", response)
         return response
     except Exception as e:
         print(f"Inference failed: {e}")
