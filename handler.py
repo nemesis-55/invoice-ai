@@ -112,7 +112,7 @@ def generate_prompt(pdf_bytes):
             "}\n"
         )
         
-        return [{"role": "user", "content": question}]
+        return [{"role": "user", "content": [image, question]}]
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
