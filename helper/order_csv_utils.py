@@ -71,6 +71,7 @@ def expand_order_items_csv_to_list(order_json_with_csv):
     # If OrderItemsCSV is empty or whitespace, remove the field
     if not order_items_csv:
         order_json_with_csv.pop("OrderItemsCSV", None)
+        order_json_with_csv["OrderItems"] = []
         print("DEBUG: 'OrderItemsCSV' is empty or whitespace. Removed from order_json_with_csv.")
         return json.dumps(order_json_with_csv, ensure_ascii=False, indent=2)
     
