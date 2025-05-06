@@ -43,7 +43,7 @@ def load_model_and_tokenizer():
             trust_remote_code=True, 
             torch_dtype=torch.bfloat16, 
             cache_dir=cache
-        ).eval()
+        ).cuda().eval()
 
         print("Model Loading Complete")
         return model, tokenizer
