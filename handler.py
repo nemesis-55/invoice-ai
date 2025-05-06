@@ -99,7 +99,7 @@ def generate_prompt(pdf_bytes):
             "Respond with only the JSON object."
         )
         
-        return (image, [{"role": "user", "content": [image, question]}])
+        return [{"role": "user", "content": [image, question]}]
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
