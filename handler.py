@@ -33,6 +33,12 @@ def load_model_and_tokenizer():
             torch_dtype=torch.bfloat16, 
             cache_dir=cache
         ).cuda().eval()
+        messages = [
+            {"role": "user", "content": "hey"}
+        ]
+        print("messages: ", messages)
+        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+        print("response: ", response)
 
         print("Model Loading Complete")
         return model, tokenizer
