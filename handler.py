@@ -10,10 +10,10 @@ import fitz  # PyMuPDF
 from peft import PeftModel
 import os
 from helper.order_csv_utils import expand_order_items_csv_to_list
+import time
 
 # Constants
 MODEL_DPI = 600
-MODEL_TYPE = "openbmb/MiniCPM-V-2_6"
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-2.0"
 cache = "/runpod-volume/cache"
 login(os.getenv("HF_TOKEN"))
@@ -24,19 +24,8 @@ def load_model_and_tokenizer():
     try:
         print("loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
-        print("Loading base model...")
-        base_model = AutoModel.from_pretrained(
-            MODEL_TYPE,
-            device_map="cuda",
-            attn_implementation="sdpa",
-            trust_remote_code=True, 
-            torch_dtype=torch.bfloat16, 
-            cache_dir=cache
-        )
-
-        print("Loading LoRA adapter...")
-        model = PeftModel.from_pretrained(
-            base_model,
+        print("Loading model...")
+        model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
@@ -137,7 +126,10 @@ def run(request):
         print(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
 
+start_time = time.time()
 model, tokenizer = load_model_and_tokenizer()
+print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+
 
 # Initialize and Start RunPod Handler
 if __name__ == "__main__":
