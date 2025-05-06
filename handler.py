@@ -72,7 +72,6 @@ def generate_prompt(pdf_bytes):
     try:
         image = pdf_to_image(pdf_bytes)
         question = (
-            "<image>\n"
             "Extract the following fields from the invoice image and return a JSON object:\n"
             "- OrderNumber\n"
             "- InvoiceNumber\n"
@@ -100,18 +99,18 @@ def generate_prompt(pdf_bytes):
             "Respond with only the JSON object."
         )
         
-        return (image, [{"role": "user", "content": question}])
+        return (image, [{"role": "user", "content": [image, question]}])
     except Exception as e:
         print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
-def perform_inference(image, messages, model, tokenizer):
+def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
             print("messages: ", messages)
-            response = model.chat(image=image, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
             print("response: ", response)
         return response
     except Exception as e:
@@ -130,8 +129,8 @@ def run(request):
 
         pdf_bytes = base64.b64decode(pdf_data)
 
-        (image, prompt) = generate_prompt(pdf_bytes)
-        response = perform_inference(image, prompt, model, tokenizer)
+        prompt = generate_prompt(pdf_bytes)
+        response = perform_inference(prompt, model, tokenizer)
         json_response = expand_order_items_csv_to_list(response)
         return {"response": json_response}
     except Exception as e:
