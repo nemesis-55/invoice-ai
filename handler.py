@@ -13,7 +13,7 @@ from helper.order_csv_utils import expand_order_items_csv_to_list
 import time
 
 # Constants
-MODEL_DPI = 600
+MODEL_DPI = 300
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-2.0"
 cache = "/runpod-volume/cache"
 login(os.getenv("HF_TOKEN"))
