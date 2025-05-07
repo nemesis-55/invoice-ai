@@ -9,7 +9,7 @@ import base64
 import fitz  # PyMuPDF
 from peft import PeftModel
 import os
-from helper.order_csv_utils import expand_order_items_csv_to_list
+from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 
 # Constants
@@ -86,7 +86,9 @@ def generate_prompt(pdf_bytes):
             "- Currency\n"
             "- TermsOfDelCode\n"
             "- ActualFreight\n"
-            "- OrderItemsCSV: CSV string with header 'Description, HsCode, HsCodeExport, Quantity, ArticleNumber, GrossWeight, NetWeight, CountryOfOrigin, NumberOfUnits, TypeOfUnit, PricePerPiece, NetAmount' and rows separated by '\\n'.\n"
+            "- OrderItemsList: a list of lists. Each inner list represents one item and follows the column order:\n"
+            "  ['Description', 'HsCode', 'HsCodeExport', 'Quantity', 'ArticleNumber', 'GrossWeight', "
+            "'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece', 'NetAmount']\n"
             "- NetWeight\n"
             "- OtherAmount\n"
             "- NumberOfUnits\n"
@@ -124,9 +126,12 @@ def run(request):
 
         pdf_bytes = base64.b64decode(pdf_data)
 
+        (image, prompt) = generate_prompt(pdf_bytes)
+        response = perform_inference(image, prompt, model, tokenizer)
+        json_response = expand_order_items_list_to_json(response)
         prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
-        json_response = expand_order_items_csv_to_list(response)
+        json_response = expand_order_items_list_to_json(response)
         return {"response": json_response}
     except Exception as e:
         print(f"Exception during processing: {e}")

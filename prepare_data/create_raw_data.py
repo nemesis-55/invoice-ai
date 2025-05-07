@@ -8,7 +8,7 @@ import fitz  # PyMuPDF
 from PIL import Image
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from helper.order_csv_utils import embed_order_items_csv_in_json
+from helper.order_csv_utils import embed_order_items_list_in_json
 
 # Constants
 BLOB_URL = os.environ["BLOB_URL"]
@@ -161,7 +161,7 @@ def create_raw_data(pickup_id, json_dir, image_paths):
         
         raw_data[pickup_id][page_num] = {
             "image_path": image_path,
-            "data": embed_order_items_csv_in_json(convert_to_order_structure(properties)),
+            "data": embed_order_items_list_in_json(convert_to_order_structure(properties)),
         }
 
 def process_single_pdf(pickup_id, pdf_path, image_output_dir):

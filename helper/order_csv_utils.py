@@ -1,107 +1,110 @@
-import io
-import csv
 import json
 
-def embed_order_items_csv_in_json(order_json):
+fieldnames = ['Description', 'HsCode', 'HsCodeExport', 'Quantity', 'ArticleNumber', 'GrossWeight', 'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece', 'NetAmount']
+
+def embed_order_items_list_in_json(order_json):
     """
-    Embeds the 'OrderItems' list from the JSON into a CSV format within the JSON.
-    
+    Embeds the 'OrderItems' list from the JSON as a list of lists under the key 'OrderItemsList'.
+
     Parameters:
-    - order_json (dict): The input JSON with 'OrderItems' to be embedded as CSV.
-    
+    ----------
+    order_json : dict
+        The input JSON dictionary containing an 'OrderItems' key with a list of dictionaries.
+
     Returns:
-    - dict: The modified JSON with 'OrderItemsCSV' added and 'OrderItems' removed.
+    -------
+    dict
+        The modified JSON with 'OrderItemsList' added and 'OrderItems' removed.
     """
-    print("DEBUG: Entering embed_order_items_csv_in_json()")
-    print(f"DEBUG: Initial order_json: {json.dumps(order_json, ensure_ascii=False, indent=2)}")
     
     order_items = order_json.get("OrderItems", [])
-    print(f"DEBUG: Extracted OrderItems: {order_items}")
     
-    # If no OrderItems, set 'OrderItemsCSV' to empty string
+    # If no OrderItems, set 'OrderItemsList' to empty list
     if not order_items:
-        order_json["OrderItemsCSV"] = ""
-        print("DEBUG: No OrderItems found. Setting 'OrderItemsCSV' to an empty string.")
+        order_json["OrderItemsList"] = []
     else:
-        # Convert OrderItems list to CSV format
-        order_json["OrderItemsCSV"] = convert_list_to_csv(order_items)
-        print("DEBUG: 'OrderItemsCSV' populated with CSV data.")
+        # Convert OrderItems list to list of lists
+        order_json["OrderItemsList"] = convert_json_list_to_list_of_list(order_items)
     
     # Remove 'OrderItems' field
     order_json.pop("OrderItems", None)
-    print(f"DEBUG: Final order_json: {json.dumps(order_json, ensure_ascii=False, indent=2)}")
-    
     return order_json
 
-def convert_list_to_csv(order_items):
+def convert_json_list_to_list_of_list(json_list):
     """
-    Converts a list of dictionaries (OrderItems) into a CSV string.
-    
-    Parameters:
-    - order_items (list): List of dictionaries representing the order items.
-    
-    Returns:
-    - str: CSV formatted string representing the order items.
-    """
-    output = io.StringIO(newline="")
-    if order_items:
-        writer = csv.DictWriter(output, fieldnames=order_items[0].keys(), delimiter=',', quoting=csv.QUOTE_MINIMAL)
-        writer.writeheader()
-        writer.writerows(order_items)
-    
-    return output.getvalue().encode("utf-8").decode("utf-8")
+    Converts a list of dictionaries (typically parsed from a JSON array) into a list of lists,
+    where each inner list contains the values from a dictionary in insertion order.
 
-def expand_order_items_csv_to_list(order_json_with_csv):
-    """
-    Expands the 'OrderItemsCSV' field in the input JSON into a list of dictionaries under 'OrderItems'.
-    
     Parameters:
-    - order_json_with_csv (dict): The input JSON containing 'OrderItemsCSV'.
-    
+    ----------
+    json_list : list of dict
+        A list where each element is a dictionary representing a JSON object.
+
     Returns:
-    - dict: The modified JSON with 'OrderItems' populated and 'OrderItemsCSV' removed.
+    -------
+    list of list
+        A list of lists, where each inner list contains the values of the corresponding dictionary.
     """
-    print("DEBUG: Entering expand_order_items_csv_to_list()")
-    print(f"DEBUG: Initial order_json_with_csv: {json.dumps(order_json_with_csv, ensure_ascii=False, indent=2)}")
-    order_json_with_csv = json.loads(order_json_with_csv)
-    print(f"DEBUG: Parsed order_json_with_csv: {json.dumps(order_json_with_csv, ensure_ascii=False, indent=2)}")
-    order_items_csv = order_json_with_csv.get("OrderItemsCSV", "").strip()
-    print(f"DEBUG: Extracted OrderItemsCSV: {order_items_csv}")
     
-    # If OrderItemsCSV is empty or whitespace, remove the field
-    if not order_items_csv:
-        order_json_with_csv.pop("OrderItemsCSV", None)
-        order_json_with_csv["OrderItems"] = []
-        print("DEBUG: 'OrderItemsCSV' is empty or whitespace. Removed from order_json_with_csv.")
-        return json.dumps(order_json_with_csv, ensure_ascii=False, indent=2)
+    if not json_list:
+        return []
+    
+    # Convert each dictionary in the list to a list of values
+    list_of_lists = [list(item.values()) for item in json_list]
+    return list_of_lists
+
+
+def expand_order_items_list_to_json(order_json_with_list):
+    """
+    Expands the 'OrderItemsList' field in the input JSON into a list of dictionaries under 'OrderItems'.
+
+    Parameters:
+    ----------
+    order_json_with_list : str
+        A JSON string containing 'OrderItemsList', to be parsed and converted.
+
+    Returns:
+    -------
+    str
+        A JSON-formatted string with 'OrderItems' populated and 'OrderItemsList' removed.
+    """
+    
+    order_json_with_list = json.loads(order_json_with_list)
+    order_items_list = order_json_with_list.get("OrderItemsList", [])
+    
+    if not order_items_list:
+        order_json_with_list.pop("OrderItemsList", None)
+        return json.dumps(order_json_with_list, ensure_ascii=False, indent=2)
     
     try:
-        # Convert CSV back into list of dictionaries
-        order_json_with_csv["OrderItems"] = convert_csv_to_list(order_items_csv)
-        order_json_with_csv.pop("OrderItemsCSV", None)
-        print("DEBUG: 'OrderItemsCSV' converted to list and replaced in order_json_with_csv.")
+        order_json_with_list["OrderItems"] = convert_list_of_list_to_json_list(order_items_list, fieldnames)
+        order_json_with_list.pop("OrderItemsList", None)
     except Exception as e:
-        print(f"ERROR: Exception during CSV processing: {e}")
-        return f"Error processing CSV: {str(e)}"
+        print(f"ERROR: Exception during list processing: {e}")
+        return f"Error processing list: {str(e)}"
     
-    print(f"DEBUG: Final order_json_with_csv: {json.dumps(order_json_with_csv, ensure_ascii=False, indent=2)}")
-    return json.dumps(order_json_with_csv, ensure_ascii=False, indent=2)
+    return json.dumps(order_json_with_list, ensure_ascii=False, indent=2)
 
-def convert_csv_to_list(order_items_csv):
+def convert_list_of_list_to_json_list(list_of_lists, fieldnames):
     """
-    Converts a CSV string back into a list of dictionaries.
-    
+    Converts a list of lists into a list of dictionaries using the provided fieldnames as keys.
+
     Parameters:
-    - order_items_csv (str): The CSV string representing order items.
-    
+    ----------
+    list_of_lists : list of list
+        A list where each inner list represents a row of values.
+    fieldnames : list of str
+        A list of field names to be used as dictionary keys.
+
     Returns:
-    - list: List of dictionaries representing the order items.
+    -------
+    list of dict
+        A list of dictionaries where each dictionary maps fieldnames to corresponding values.
     """
-    csv_file = io.StringIO(order_items_csv, newline="")
-    reader = csv.DictReader(csv_file)
-    order_items = []
     
-    for row in reader:
-        order_items.append({field: row.get(field, "") for field in reader.fieldnames})
+    if not list_of_lists or not fieldnames:
+        return []
     
-    return order_items
+    json_list = [dict(zip(fieldnames, sublist)) for sublist in list_of_lists]
+    
+    return json_list
