@@ -125,10 +125,6 @@ def run(request):
             return {"error": "Missing PDF data."}
 
         pdf_bytes = base64.b64decode(pdf_data)
-
-        (image, prompt) = generate_prompt(pdf_bytes)
-        response = perform_inference(image, prompt, model, tokenizer)
-        json_response = expand_order_items_list_to_json(response)
         prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
         json_response = expand_order_items_list_to_json(response)
