@@ -118,13 +118,7 @@ def perform_inference(messages, model, tokenizer):
 # Main Request Handler
 def run(request):
     """Process incoming requests."""
-    try:
-        # Parse request if it's a JSON string
-        if isinstance(request, str):
-            request = json.loads(request)
-
-        print(f"DEBUG LOG:\nRequest: {request}")
-        
+    try:        
         input_data = request.get("input", {})
         pdf_data = input_data.get("pdf_data")
         page_number = input_data.get("page_number", 0)
@@ -136,6 +130,8 @@ def run(request):
         prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
 
+        response = json.loads(response)
+        
         # add key value pair for page number in response for all order items
         for item in response.get("OrderItemsList", []):
             item.append(int(page_number))

@@ -69,7 +69,6 @@ def expand_order_items_list_to_json(order_json_with_list):
         A JSON-formatted string with 'OrderItems' populated and 'OrderItemsList' removed.
     """
     
-    order_json_with_list = json.loads(order_json_with_list)
     order_items_list = order_json_with_list.get("OrderItemsList", [])
     
     if not order_items_list:
