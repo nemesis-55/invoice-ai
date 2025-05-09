@@ -120,6 +120,7 @@ def run(request):
     try:
         input_data = request.get("input", {})
         pdf_data = input_data.get("pdf_data")
+        page_number = input_data.get("page_number", 0)
 
         if not pdf_data:
             return {"error": "Missing PDF data."}
@@ -127,6 +128,11 @@ def run(request):
         pdf_bytes = base64.b64decode(pdf_data)
         prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
+
+        # add key value pair for page number in response for all order items
+        for item in response.get("OrderItemsList", []):
+            item.append(int(page_number))
+
         json_response = expand_order_items_list_to_json(response)
         return {"response": json_response}
     except Exception as e:
