@@ -11,6 +11,7 @@ from peft import PeftModel
 import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
+import json
 
 # Constants
 MODEL_DPI = 300
@@ -118,6 +119,12 @@ def perform_inference(messages, model, tokenizer):
 def run(request):
     """Process incoming requests."""
     try:
+        # Parse request if it's a JSON string
+        if isinstance(request, str):
+            request = json.loads(request)
+
+        print(f"DEBUG LOG:\nRequest: {request}")
+        
         input_data = request.get("input", {})
         pdf_data = input_data.get("pdf_data")
         page_number = input_data.get("page_number", 0)
