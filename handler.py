@@ -1,4 +1,6 @@
 import base64
+from models.payloads.PromptPayload import PromptPayload
+from models.payloads.InvoiceExtractionPayload import InvoiceExtractionPayload
 import torch
 from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
@@ -119,9 +121,28 @@ def perform_inference(messages, model, tokenizer):
 def run(request):
     """Process incoming requests."""
     try:        
-        input_data = request.get("input", {})
-        pdf_data = input_data.get("pdf_data")
-        page_number = input_data.get("page_number", 0)
+        payload = request.get("input", {})
+        action = payload.get("action")
+        data = payload.get("data", {})
+
+        if action == "INVOICE_EXTRACTION":
+            return handle_extract_invoice(data)
+        elif action == "PROMPT":
+            return handle_prompt(data)
+
+    except Exception as e:
+        print(f"Exception during processing: {e}")
+        return {"error": f"Exception during processing: {e}"}
+
+def handle_extract_invoice(data):
+        try:
+            payload = InvoiceExtractionPayload(**data)
+        except TypeError as e:
+            return {"error": f"Invalid prompt payload: {e}"}
+
+
+        pdf_data = payload.pdf_data
+        page_number = payload.page_number or "0"
 
         if not pdf_data:
             return {"error": "Missing PDF data."}
@@ -130,6 +151,7 @@ def run(request):
         prompt = generate_prompt(pdf_bytes)
         response = perform_inference(prompt, model, tokenizer)
 
+        # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
         response = json.loads(response)
         
         # add key value pair for page number in response for all order items
@@ -138,9 +160,19 @@ def run(request):
 
         json_response = expand_order_items_list_to_json(response)
         return {"response": json_response}
-    except Exception as e:
-        print(f"Exception during processing: {e}")
-        return {"error": f"Exception during processing: {e}"}
+
+def handle_prompt(data):
+    try:
+        payload = PromptPayload(**data)
+    except TypeError as e:
+        return {"error": f"Invalid prompt payload: {e}"}
+    
+    messages = [{"role": "user", "content": payload.prompt}]
+    response = perform_inference(messages, model, tokenizer)
+
+    # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
+    response = json.loads(response)
+    return {"response": response}
 
 start_time = time.time()
 model, tokenizer = load_model_and_tokenizer()
