@@ -116,7 +116,7 @@ def perform_inference(messages, model, tokenizer):
         raise RuntimeError(f"Inference failed: {e}")
 
 # Main Request Handler
-def run(request):
+async def run(request):
     """Process incoming requests."""
     try:        
         input_data = request.get("input", {})
@@ -141,6 +141,11 @@ def run(request):
     except Exception as e:
         print(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
+    
+# Concurrency Modifier
+def adjust_concurrency(current_concurrency: int) -> int:
+    # You can dynamically adjust here, but start with a fixed safe value
+    return 2
 
 start_time = time.time()
 model, tokenizer = load_model_and_tokenizer()
@@ -150,4 +155,7 @@ print(f"Model loaded in {time.time() - start_time:.2f} seconds")
 # Initialize and Start RunPod Handler
 if __name__ == "__main__":
     print("Initializing RunPod serverless handler.")
-    runpod.serverless.start({"handler": run})
+    runpod.serverless.start({
+        "handler": run,
+        "concurrency_modifier": adjust_concurrency,
+        })
