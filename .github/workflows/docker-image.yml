@@ -19,20 +19,32 @@ jobs:
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
       with:
-        username: nemesis55
-        password: sksingh55
+        username: arindamupadhyaygothia
+        password: B3YxWbuM3wJ4g37
+
+    - name: Set Docker image version tag
+      id: vars
+      run: |
+        BRANCH_NAME=$(echo "${GITHUB_REF#refs/heads/}" | tr '/' '-')
+        SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+        DATE=$(date +%Y%m%d)
+        VERSION_TAG="${BRANCH_NAME}-${SHORT_SHA}-${DATE}"
+        echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
 
     - name: Build the Docker image
       id: build
       run: |
-        TIMESTAMP=$(date +%s)
-        docker build . --file Dockerfile --tag invoice-ai:$TIMESTAMP --memory=30g
-        echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+        docker build \
+          --file Dockerfile \
+          --tag arindamupadhyaygothia/invoice-ai:latest \
+          --tag arindamupadhyaygothia/invoice-ai:${VERSION_TAG} \
+          --memory=30g \
+          .
 
-    - name: Tag Docker image
+    - name: Push Docker image to Docker Hub (latest)
       run: |
-        docker tag invoice-ai:$TIMESTAMP nemesis55/invoice-ai:latest
+        docker push arindamupadhyaygothia/invoice-ai:latest
 
-    - name: Push Docker image to Docker Hub
+    - name: Push Docker image to Docker Hub (versioned)
       run: |
-        docker push nemesis55/invoice-ai:latest
+        docker push arindamupadhyaygothia/invoice-ai:${VERSION_TAG}
