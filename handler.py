@@ -129,6 +129,8 @@ def run(request):
             return handle_extract_invoice(data)
         elif action == "PROMPT":
             return handle_prompt(data)
+        elif action == "ASSISTANT":
+            return handle_assistant_request(data)
 
     except Exception as e:
         print(f"Exception during processing: {e}")
@@ -173,6 +175,17 @@ def handle_prompt(data):
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
     response = json.loads(response)
     return {"response": response}
+
+# # Create a new handler function to handle assistant requests
+def handle_assistant_request(data):
+    try:
+        payload = PromptPayload(**data)
+    except TypeError as e:
+        return{"error": f"Invalid prompt payload: {e}"}
+    messages = [{"role":"user", "content": payload.prompt}]
+    response = perform_inference(messages, model, tokenizer)
+    return {"response": response}
+
 
 start_time = time.time()
 model, tokenizer = load_model_and_tokenizer()
