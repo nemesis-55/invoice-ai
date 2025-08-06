@@ -14,6 +14,11 @@ import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Constants
 MODEL_DPI = 300
@@ -25,9 +30,9 @@ login(os.getenv("HF_TOKEN"))
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
-        print("loading tokenizer")
+        logger.info("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
-        print("Loading model...")
+        logger.info("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
             device_map="cuda",
@@ -39,14 +44,14 @@ def load_model_and_tokenizer():
         messages = [
             {"role": "user", "content": "hey"}
         ]
-        print("messages: ", messages)
+        logger.debug("Test messages: %s", messages)
         response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
-        print("response: ", response)
+        logger.debug("Test response: %s", response)
 
-        print("Model Loading Complete")
+        logger.info("Model loading complete")
         return model, tokenizer
     except Exception as e:
-        print(f"exception: {e}")
+        logger.error("Failed to load model and tokenizer: %s", e)
         return None, None
 
 
@@ -61,7 +66,7 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
         image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
         return image
     except Exception as e:
-        print(f"Error converting PDF to image: {e}")
+        logger.error("Error converting PDF to image: %s", e)
         raise ValueError(f"Error converting PDF to image: {e}")
 
 # Generate Detailed Prompt
@@ -101,7 +106,7 @@ def generate_prompt(pdf_bytes):
         
         return [{"role": "user", "content": [image, question]}]
     except Exception as e:
-        print(f"Error generating prompt: {e}")
+        logger.error("Error generating prompt: %s", e)
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
@@ -109,12 +114,12 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            print("messages: ", messages)
+            logger.debug("Inference messages: %s", messages)
             response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
-            print("response: ", response)
+            logger.debug("Inference response: %s", response)
         return response
     except Exception as e:
-        print(f"Inference failed: {e}")
+        logger.error("Inference failed: %s", e)
         raise RuntimeError(f"Inference failed: {e}")
 
 # Main Request Handler
@@ -133,7 +138,7 @@ def run(request):
             return handle_assistant_request(data)
 
     except Exception as e:
-        print(f"Exception during processing: {e}")
+        logger.error("Exception during processing: %s", e)
         return {"error": f"Exception during processing: {e}"}
 
 def handle_extract_invoice(data):
@@ -189,10 +194,10 @@ def handle_assistant_request(data):
 
 start_time = time.time()
 model, tokenizer = load_model_and_tokenizer()
-print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+logger.info("Model loaded in %.2f seconds", time.time() - start_time)
 
 
 # Initialize and Start RunPod Handler
 if __name__ == "__main__":
-    print("Initializing RunPod serverless handler.")
+    logger.info("Initializing RunPod serverless handler")
     runpod.serverless.start({"handler": run})
