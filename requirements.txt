@@ -1,13 +1,15 @@
 Pillow==10.1.0
 torch==2.1.2
 torchvision==0.16.2
+torchaudio==2.1.2
 transformers==4.44.2
 sentencepiece==0.1.99
+safetensors==0.5.3
 runpod
 pymupdf
 huggingface_hub
 numpy==1.26.4
-peft
+peft==0.16.0
 deepspeed
 azure-storage-blob
 tensorboardX

@@ -2,7 +2,7 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "arindam/feature/new-release-testing" ]
   pull_request:
     branches: [ "develop" ]
 
@@ -35,15 +35,16 @@ jobs:
       id: build
       run: |
         docker build \
+          --no-cache \
           --file Dockerfile \
           --tag arindamupadhyaygothia/invoice-ai:latest \
           --tag arindamupadhyaygothia/invoice-ai:${VERSION_TAG} \
           --memory=30g \
           .
 
-    - name: Push Docker image to Docker Hub (latest)
-      run: |
-        docker push arindamupadhyaygothia/invoice-ai:latest
+    # - name: Push Docker image to Docker Hub (latest)
+    #   run: |
+    #     docker push arindamupadhyaygothia/invoice-ai:latest
 
     - name: Push Docker image to Docker Hub (versioned)
       run: |
