@@ -17,7 +17,10 @@ import json
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:%(name)s:%(filename)s:%(lineno)d %(asctime)s %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Constants
