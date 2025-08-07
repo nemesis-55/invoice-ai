@@ -2,7 +2,7 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "arindam/feature/new-release-testing" ]
+    branches: [ "develop" ]
   pull_request:
     branches: [ "develop" ]
 
@@ -42,9 +42,9 @@ jobs:
           --memory=30g \
           .
 
-    # - name: Push Docker image to Docker Hub (latest)
-    #   run: |
-    #     docker push arindamupadhyaygothia/invoice-ai:latest
+    - name: Push Docker image to Docker Hub (latest)
+      run: |
+        docker push arindamupadhyaygothia/invoice-ai:latest
 
     - name: Push Docker image to Docker Hub (versioned)
       run: |
