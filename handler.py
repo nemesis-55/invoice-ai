@@ -14,14 +14,7 @@ import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
-import logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s:%(name)s:%(filename)s:%(lineno)d %(asctime)s %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 # Constants
 MODEL_DPI = 300
@@ -33,9 +26,9 @@ login(os.getenv("HF_TOKEN"))
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
-        logger.info("Loading tokenizer")
+        print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
-        logger.info("Loading model...")
+        print("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
             device_map="cuda",
@@ -47,14 +40,14 @@ def load_model_and_tokenizer():
         messages = [
             {"role": "user", "content": "hey"}
         ]
-        logger.debug("Test messages: %s", messages)
+        print(f"Test messages: {messages}")
         response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
-        logger.debug("Test response: %s", response)
+        print(f"Test response: {response}")
 
-        logger.info("Model loading complete")
+        print("Model loading complete")
         return model, tokenizer
     except Exception as e:
-        logger.error("Failed to load model and tokenizer: %s", e)
+        print(f"Failed to load model and tokenizer: {e}")
         return None, None
 
 
@@ -69,7 +62,7 @@ def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
         image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
         return image
     except Exception as e:
-        logger.error("Error converting PDF to image: %s", e)
+        print(f"Error converting PDF to image: {e}")
         raise ValueError(f"Error converting PDF to image: {e}")
 
 # Generate Detailed Prompt
@@ -106,10 +99,9 @@ def generate_prompt(pdf_bytes):
             "Use exact text from the image. If a value is missing, set it to an empty string \"\".\n"
             "Respond with only the JSON object."
         )
-        
         return [{"role": "user", "content": [image, question]}]
     except Exception as e:
-        logger.error("Error generating prompt: %s", e)
+        print(f"Error generating prompt: {e}")
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
@@ -117,12 +109,12 @@ def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
         with torch.no_grad():
-            logger.debug("Inference messages: %s", messages)
+            print(f"Inference messages: {messages}")
             response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
-            logger.debug("Inference response: %s", response)
+            print(f"Inference response: {response}")
         return response
     except Exception as e:
-        logger.error("Inference failed: %s", e)
+        print(f"Inference failed: {e}")
         raise RuntimeError(f"Inference failed: {e}")
 
 # Main Request Handler
@@ -141,40 +133,42 @@ def run(request):
             return handle_assistant_request(data)
 
     except Exception as e:
-        logger.error("Exception during processing: %s", e)
+        print(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
 
 def handle_extract_invoice(data):
-        try:
-            payload = InvoiceExtractionPayload(**data)
-        except TypeError as e:
-            return {"error": f"Invalid prompt payload: {e}"}
+    try:
+        payload = InvoiceExtractionPayload(**data)
+    except TypeError as e:
+        print(f"Invalid prompt payload: {e}")
+        return {"error": f"Invalid prompt payload: {e}"}
 
+    pdf_data = payload.pdf_data
+    page_number = payload.page_number or "0"
 
-        pdf_data = payload.pdf_data
-        page_number = payload.page_number or "0"
+    if not pdf_data:
+        print("Missing PDF data.")
+        return {"error": "Missing PDF data."}
 
-        if not pdf_data:
-            return {"error": "Missing PDF data."}
+    pdf_bytes = base64.b64decode(pdf_data)
+    prompt = generate_prompt(pdf_bytes)
+    response = perform_inference(prompt, model, tokenizer)
 
-        pdf_bytes = base64.b64decode(pdf_data)
-        prompt = generate_prompt(pdf_bytes)
-        response = perform_inference(prompt, model, tokenizer)
+    # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
+    response = json.loads(response)
+    
+    # add key value pair for page number in response for all order items
+    for item in response.get("OrderItemsList", []):
+        item.append(int(page_number))
 
-        # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
-        response = json.loads(response)
-        
-        # add key value pair for page number in response for all order items
-        for item in response.get("OrderItemsList", []):
-            item.append(int(page_number))
-
-        json_response = expand_order_items_list_to_json(response)
-        return {"response": json_response}
+    json_response = expand_order_items_list_to_json(response)
+    return {"response": json_response}
 
 def handle_prompt(data):
     try:
         payload = PromptPayload(**data)
     except TypeError as e:
+        print(f"Invalid prompt payload: {e}")
         return {"error": f"Invalid prompt payload: {e}"}
     
     messages = [{"role": "user", "content": payload.prompt}]
@@ -189,18 +183,20 @@ def handle_assistant_request(data):
     try:
         payload = PromptPayload(**data)
     except TypeError as e:
+        print(f"Invalid prompt payload: {e}")
         return{"error": f"Invalid prompt payload: {e}"}
     messages = [{"role":"user", "content": payload.prompt}]
     response = perform_inference(messages, model, tokenizer)
     return {"response": response}
 
 
+
 start_time = time.time()
 model, tokenizer = load_model_and_tokenizer()
-logger.info("Model loaded in %.2f seconds", time.time() - start_time)
+print(f"Model loaded in {time.time() - start_time:.2f} seconds")
 
 
 # Initialize and Start RunPod Handler
 if __name__ == "__main__":
-    logger.info("Initializing RunPod serverless handler")
+    print("Initializing RunPod serverless handler")
     runpod.serverless.start({"handler": run})
