@@ -29,16 +29,34 @@ def convert_pdf_to_images(pickup_id, pdf_path, image_output_dir, dpi=600):
     os.makedirs(image_output_dir, exist_ok=True)
     pdf_document = fitz.open(pdf_path)
     image_paths = {}
+
+    # --- Use the same identifier logic as in create_raw_data.py ---
+    def generate_pdf_identifier(pdf_path, pickup_id):
+        pdf_filename = os.path.splitext(os.path.basename(pdf_path))[0]
+        if pdf_filename.startswith(pickup_id):
+            identifier = pdf_filename[len(pickup_id):].lstrip('_-')
+        else:
+            identifier = pdf_filename
+        identifier = identifier.replace(' ', '_').replace('-', '_')
+        identifier = ''.join(c for c in identifier if c.isalnum() or c == '_')
+        identifier = identifier.strip('_')
+        if not identifier:
+            identifier = pdf_filename.replace(' ', '_').replace('-', '_')
+            identifier = ''.join(c for c in identifier if c.isalnum() or c == '_').strip('_')
+        return f"pdf_{identifier}"
+
+    pdf_identifier = generate_pdf_identifier(pdf_path, pickup_id)
+
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
         pix = page.get_pixmap(dpi=dpi)
         mode = "RGBA" if pix.alpha else "RGB"
         image = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
-        image_path = os.path.join(image_output_dir, f"{pickup_id}_{page_num + 1:03d}.png")
+        # Use the same image naming pattern as in create_raw_data.py
+        image_path = os.path.join(image_output_dir, f"{pickup_id}_{pdf_identifier}_{page_num + 1:03d}.png")
         image.save(image_path)
         image_paths[str(page_num + 1)] = image_path
         print(f"Saved: {image_path}")
-    
     return image_paths
 
 if __name__ == "__main__":

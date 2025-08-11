@@ -14,16 +14,17 @@ import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
+from transformers import BitsAndBytesConfig
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
-CACHE_DIR = "/runpod-volume/cache"
+CACHE_DIR = "/runpod-volume/test-cache"
 os.environ["HF_HOME"] = CACHE_DIR
 os.environ["TRANSFORMERS_CACHE"] = CACHE_DIR
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Constants
 MODEL_DPI = 300
-ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-3.0"
+ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-4.0"
 cache = os.environ["HF_HOME"]
 
 # One-time cache cleanup (remove old unreferenced revisions to free space)
@@ -58,17 +59,21 @@ login(os.getenv("HF_TOKEN"))
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
+        torch.cuda.empty_cache()
+
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
             device_map="cuda",
-            attn_implementation="sdpa",
+            attn_implementation="eager",
+            init_vision=True,
+            init_audio=False,
+            init_tts=False,
             trust_remote_code=True, 
-            torch_dtype=torch.bfloat16, 
             cache_dir=cache
-        ).cuda().eval()
+        ).eval().cuda()
         messages = [
             {"role": "user", "content": "hey"}
         ]
@@ -124,7 +129,7 @@ def generate_prompt(pdf_bytes):
             "- ActualFreight\n"
             "- OrderItemsList: a list of lists. Each inner list represents one item and follows the column order:\n"
             "  ['Description', 'HsCode', 'HsCodeExport', 'Quantity', 'ArticleNumber', 'GrossWeight', "
-            "'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece', 'NetAmount']\n"
+            "'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece', 'NetAmount', 'Discount', 'DiscountPercentage']\n"
             "- NetWeight\n"
             "- OtherAmount\n"
             "- NumberOfUnits\n"
