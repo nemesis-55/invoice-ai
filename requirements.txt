@@ -19,3 +19,4 @@ accelerate==1.9.0
 librosa
 vector_quantize_pytorch
 vocos
+bitsandbytes
