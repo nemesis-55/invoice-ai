@@ -14,6 +14,8 @@ import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
+from transformers import BitsAndBytesConfig
+ 
 
 
 # Constants
@@ -27,6 +29,11 @@ def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
         torch.cuda.empty_cache()
+
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True
+        )
+
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading model...")
@@ -35,7 +42,8 @@ def load_model_and_tokenizer():
             device_map="cuda",
             attn_implementation="sdpa",
             trust_remote_code=True, 
-            torch_dtype=torch.bfloat16, 
+            torch_dtype=torch.bfloat16,
+            quantization_config=quantization_config,
             cache_dir=cache
         ).cuda().eval()
         messages = [
