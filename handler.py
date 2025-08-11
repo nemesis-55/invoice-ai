@@ -19,7 +19,7 @@ import json
 # Constants
 MODEL_DPI = 300
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-2.0"
-cache = "/runpod-volume/cache"
+cache = "/runpod-volume/test-cache"
 login(os.getenv("HF_TOKEN"))
 
 # Load Model and Tokenizer
