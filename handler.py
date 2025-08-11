@@ -39,7 +39,7 @@ def load_model_and_tokenizer():
         print("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
-            device_map="auto",
+            device_map="cuda",
             attn_implementation="sdpa",
             trust_remote_code=True, 
             torch_dtype=torch.bfloat16,
