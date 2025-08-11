@@ -26,6 +26,7 @@ login(os.getenv("HF_TOKEN"))
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
+        torch.cuda.empty_cache()
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading model...")
