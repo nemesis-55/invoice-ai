@@ -39,13 +39,13 @@ def load_model_and_tokenizer():
         print("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
-            device_map="cuda",
+            device_map="auto",
             attn_implementation="sdpa",
             trust_remote_code=True, 
             torch_dtype=torch.bfloat16,
             quantization_config=quantization_config,
             cache_dir=cache
-        ).cuda().eval()
+        ).eval()
         messages = [
             {"role": "user", "content": "hey"}
         ]
