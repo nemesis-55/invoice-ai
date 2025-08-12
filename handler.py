@@ -36,17 +36,18 @@ def load_model_and_tokenizer():
 
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
-            print("Loading model (8-bit quantized, device_map='auto')...")
-            model = AutoModel.from_pretrained(
-                ADAPTOR_TYPE,
-                load_in_8bit=True,
-                device_map="auto",
-                attn_implementation="sdpa",
-                trust_remote_code=True,
-                cache_dir=cache,
-                offload_folder="offload_dir"  # folder for CPU/disk offload if needed
-            )
-            model.eval()
+        
+        print("Loading model (8-bit quantized, device_map='auto')...")
+        model = AutoModel.from_pretrained(
+            ADAPTOR_TYPE,
+            load_in_8bit=True,
+            device_map="auto",
+            attn_implementation="sdpa",
+            trust_remote_code=True,
+            cache_dir=cache,
+            offload_folder="offload_dir"  # folder for CPU/disk offload if needed
+        )
+        model.eval()
         messages = [
             {"role": "user", "content": "hey"}
         ]
