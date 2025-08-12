@@ -21,10 +21,6 @@ RUN apt-get update && apt-get install -y \
     libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
-
-# Set PyTorch CUDA allocation config to help with memory fragmentation
-ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:32
-
 # Install Python dependencies
 COPY requirements.txt ./
 

@@ -30,24 +30,16 @@ def load_model_and_tokenizer():
     try:
         torch.cuda.empty_cache()
 
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True
-        )
-
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
-        
-        print("Loading model (8-bit quantized, device_map='auto')...")
+        print("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
-            load_in_8bit=True,
-            device_map="auto",
+            device_map="cuda",
             attn_implementation="sdpa",
-            trust_remote_code=True,
-            cache_dir=cache,
-            offload_folder="offload_dir"  # folder for CPU/disk offload if needed
-        )
-        model.eval()
+            trust_remote_code=True, 
+            cache_dir=cache
+        ).cuda().eval()
         messages = [
             {"role": "user", "content": "hey"}
         ]
