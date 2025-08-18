@@ -37,9 +37,12 @@ def load_model_and_tokenizer():
             ADAPTOR_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
+            init_vision=True,
+            init_audio=False,
+            init_tts=False,
             trust_remote_code=True, 
             cache_dir=cache
-        ).cuda().eval()
+        ).eval().cuda()
         messages = [
             {"role": "user", "content": "hey"}
         ]
