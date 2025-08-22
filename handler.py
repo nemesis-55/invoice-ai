@@ -6,7 +6,7 @@ from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
 from transformers import AutoTokenizer, AutoModel
 import runpod
-from huggingface_hub import login
+from huggingface_hub import login, scan_cache_dir
 import base64
 import fitz  # PyMuPDF
 from peft import PeftModel
@@ -15,11 +15,43 @@ from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
 
+# Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
+CACHE_DIR = "/runpod-volume/cache"
+os.environ["HF_HOME"] = CACHE_DIR
+os.environ["TRANSFORMERS_CACHE"] = CACHE_DIR
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Constants
 MODEL_DPI = 300
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-3.0"
-cache = "/runpod-volume/cache"
+cache = os.environ["HF_HOME"]
+
+# One-time cache cleanup (remove old unreferenced revisions to free space)
+try:
+    cache_info = scan_cache_dir(cache_dir=cache)
+    delete_hashes = []
+    for repo in cache_info.repos:
+        # Sort revisions newest first (keep newest always)
+        revisions = sorted(
+            list(repo.revisions),
+            key=lambda r: getattr(r, "last_modified", 0),
+            reverse=True
+        )
+        for rev in revisions[1:]:  # skip most recent
+            # Some versions expose refs on revision, some on repo; be defensive
+            rev_refs = getattr(rev, "refs", None)
+            if rev_refs in (None, set(), frozenset()):
+                delete_hashes.append(rev.commit_hash)
+    if delete_hashes:
+        strategy = cache_info.delete_revisions(*delete_hashes)
+        print(f"Cache cleanup: will free {strategy.expected_freed_size_str} removing {len(delete_hashes)} old revisions")
+        strategy.execute()
+    else:
+        print("Cache cleanup: nothing to remove")
+except Exception as e:
+    print(f"Cache cleanup skipped: {e}")
+
+# Hugging Face login
 login(os.getenv("HF_TOKEN"))
 
 # Load Model and Tokenizer
