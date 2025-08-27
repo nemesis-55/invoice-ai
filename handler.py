@@ -16,11 +16,14 @@ import time
 import json
 from transformers import BitsAndBytesConfig
 
-# Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
-CACHE_DIR = "/runpod-volume/test-cache"
+# Cache config: env var provides only the volume name (not the full path). Always prefix with /runpod-volume/
+# Example: export INVOICE_AI_CACHE_DIR=my-cache  -> /runpod-volume/my-cache
+_raw_cache_name = os.getenv("INVOICE_AI_CACHE_DIR", "test-cache").strip()
+CACHE_DIR = f"/runpod-volume/{_raw_cache_name}"
 os.environ["HF_HOME"] = CACHE_DIR
 os.environ["TRANSFORMERS_CACHE"] = CACHE_DIR
 os.makedirs(CACHE_DIR, exist_ok=True)
+print(f"Using cache directory: {CACHE_DIR}")
 
 # Constants
 MODEL_DPI = 300
