@@ -22,6 +22,7 @@ data/
 
 # Data files
 data/
+classification_data/
 *.csv
 *.json
 
