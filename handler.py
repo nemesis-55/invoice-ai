@@ -14,16 +14,20 @@ import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
+import io
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
-CACHE_DIR = "/runpod-volume/cache"
+cache_name_env = os.getenv("INVOICE_AI_CACHE_DIR", "test-cache").strip()
+adaptor_type_env = os.getenv("MODEL_ADAPTOR", "GothiaDigitalSolutions/invoice-extractor-2.0").strip()
+
+CACHE_DIR = f"/runpod-volume/{cache_name_env}"
 os.environ["HF_HOME"] = CACHE_DIR
 os.environ["TRANSFORMERS_CACHE"] = CACHE_DIR
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Constants
 MODEL_DPI = 300
-ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-3.0"
+ADAPTOR_TYPE = adaptor_type_env
 cache = os.environ["HF_HOME"]
 
 # One-time cache cleanup (remove old unreferenced revisions to free space)
@@ -58,6 +62,7 @@ login(os.getenv("HF_TOKEN"))
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
+        print(f"Loading tokenizer and model for adaptor: {ADAPTOR_TYPE}")
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading model...")
@@ -152,7 +157,7 @@ def perform_inference(messages, model, tokenizer):
 # Main Request Handler
 def run(request):
     """Process incoming requests."""
-    try:        
+    try:
         payload = request.get("input", {})
         action = payload.get("action")
         data = payload.get("data", {})
@@ -163,10 +168,38 @@ def run(request):
             return handle_prompt(data)
         elif action == "ASSISTANT":
             return handle_assistant_request(data)
-
+        elif action == "CLASSIFICATION":
+            return handle_classification(data)
+    
     except Exception as e:
         print(f"Exception during processing: {e}")
         return {"error": f"Exception during processing: {e}"}
+
+def handle_classification(data):
+    try:
+        payload = PromptPayload(**data)
+    except TypeError as e:
+        raise TypeError(f"Invalid prompt payload: {e}")
+
+    prompt = payload.prompt
+    image_b64 = payload.image
+    
+    if not image_b64:
+        raise ValueError("Missing image data.")
+
+    try:
+        image_bytes = base64.b64decode(image_b64)
+        image = Image.open(io.BytesIO(image_bytes))
+    except Exception as e:
+        raise ValueError(f"Error decoding image: {e}")
+    
+    messages = [{"role": "user", "content": [image, payload.prompt]}]
+    response = perform_inference(messages, model, tokenizer)
+    try:
+        response = json.loads(response)
+    except Exception:
+        pass
+    return {"response": response}
 
 def handle_extract_invoice(data):
     try:

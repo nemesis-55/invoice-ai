@@ -15,7 +15,6 @@ azure-storage-blob
 tensorboardX
 flash_attn==2.3.4
 librosa
-librosa
 vector_quantize_pytorch
 vocos
 bitsandbytes
