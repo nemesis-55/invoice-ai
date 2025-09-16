@@ -24,6 +24,7 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 # Constants
 MODEL_DPI = 300
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-3.0"
+COMMIT_HASH = "8c16acb8e756a7e72f93da7745156d50f2f50fc8"
 cache = os.environ["HF_HOME"]
 
 # One-time cache cleanup (remove old unreferenced revisions to free space)
@@ -59,7 +60,10 @@ def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
     try:
         print("Loading tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+                                ADAPTOR_TYPE,
+                                trust_remote_code=True,
+                                revision=COMMIT_HASH)
         print("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
@@ -67,7 +71,8 @@ def load_model_and_tokenizer():
             attn_implementation="sdpa",
             trust_remote_code=True, 
             torch_dtype=torch.bfloat16, 
-            cache_dir=cache
+            cache_dir=cache,
+            revision=COMMIT_HASH
         ).cuda().eval()
         messages = [
             {"role": "user", "content": "hey"}
