@@ -15,3 +15,7 @@ azure-storage-blob
 tensorboardX
 flash_attn==2.3.4
 accelerate==1.9.0
+librosa
+vector_quantize_pytorch
+vocos
+bitsandbytes
