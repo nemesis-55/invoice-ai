@@ -10,7 +10,7 @@ pymupdf
 huggingface_hub
 numpy==1.26.4
 peft==0.16.0
-deepspeed
+deepspeed==0.11.2
 azure-storage-blob
 tensorboardX
 flash_attn==2.3.4
