@@ -26,9 +26,40 @@ MODEL_DPI = 300
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-3.0"
 cache = os.environ["HF_HOME"]
 
-# Configurable model loading parameters
-MODEL_PRECISION = os.getenv("MODEL_PRECISION", "16bit")  # 16bit, 8bit, or 4bit
-GPU_DEVICE = os.getenv("GPU_DEVICE", "single")  # single, auto, or cuda:0, cuda:1, etc.
+# Load GPU configuration
+def load_gpu_config():
+    """Load GPU configuration from gpu_config.json"""
+    config_path = os.path.join(os.path.dirname(__file__), "gpu_config.json")
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        active_profile = config.get("active_profile", "rtx_4090")
+        profile_settings = config["gpu_profiles"].get(active_profile, {}).get("recommended_settings", {})
+        fallback_settings = config.get("fallback_settings", {})
+        
+        # Merge profile settings with fallback
+        settings = {**fallback_settings, **profile_settings}
+        
+        print(f"Loaded GPU profile: {active_profile}")
+        print(f"Profile settings: {settings}")
+        
+        return settings
+    except Exception as e:
+        print(f"Warning: Could not load GPU config ({e}), using defaults")
+        return {
+            "model_precision": "16bit",
+            "gpu_device": "single",
+            "max_new_tokens": 4096
+        }
+
+# Load configuration
+gpu_config = load_gpu_config()
+
+# Configurable model loading parameters - Environment variables override GPU config
+MODEL_PRECISION = os.getenv("MODEL_PRECISION", gpu_config.get("model_precision", "16bit"))
+GPU_DEVICE = os.getenv("GPU_DEVICE", gpu_config.get("gpu_device", "single"))
+MAX_NEW_TOKENS = gpu_config.get("max_new_tokens", 8192)
 TORCH_DTYPE_MAP = {
     "16bit": torch.bfloat16,
     "8bit": torch.bfloat16,  # Still use bfloat16 for computation, 8bit for storage
@@ -114,7 +145,7 @@ def load_model_and_tokenizer():
             {"role": "user", "content": "hey"}
         ]
         print(f"Test messages: {messages}")
-        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=MAX_NEW_TOKENS)
         print(f"Test response: {response}")
 
         print(f"Model loading complete with {MODEL_PRECISION} precision on {device_map}")
@@ -183,7 +214,7 @@ def perform_inference(messages, model, tokenizer):
     try:
         with torch.no_grad():
             print(f"Inference messages: {messages}")
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=MAX_NEW_TOKENS)
             print(f"Inference response: {response}")
         return response
     except Exception as e:

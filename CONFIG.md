@@ -1,6 +1,16 @@
 # Configuration Guide
 
-## Environment Variables
+## Quick Setup (Recommended)
+
+For most users, simply edit `gpu_config.json` to specify your GPU type:
+
+```json
+"active_profile": "rtx_4090"  // or "rtx_5090"
+```
+
+This automatically configures optimal settings for your hardware. See [PARAMETER_GUIDE.md](PARAMETER_GUIDE.md) for detailed configuration options.
+
+## Environment Variables (Advanced Users)
 
 ### Model Precision Configuration
 - **MODEL_PRECISION**: Controls the precision/quantization level for model inference
@@ -13,6 +23,15 @@
   - `single` (default): Uses only the first GPU (cuda:0) - recommended for single GPU setups
   - `auto`: Automatically distributes model across all available GPUs
   - `cuda:0`, `cuda:1`, etc.: Specify exact GPU device to use
+
+## GPU Profiles (Automatic Configuration)
+
+The system now automatically selects optimal parameters based on your GPU:
+
+- **RTX 4090**: 8-bit precision, 4096 max tokens (memory efficient)
+- **RTX 5090**: 16-bit precision, 8192 max tokens (maximum quality)
+
+Edit `gpu_config.json` to switch between profiles or create custom configurations.
 
 ## Default Configuration (16-bit, Single GPU)
 
