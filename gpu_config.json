@@ -1,0 +1,38 @@
+{
+  "gpu_profiles": {
+    "rtx_4090": {
+      "name": "NVIDIA RTX 4090",
+      "vram_gb": 24,
+      "recommended_settings": {
+        "model_precision": "8bit",
+        "gpu_device": "single",
+        "max_new_tokens": 4096,
+        "batch_size": 1,
+        "cache_implementation": "sdpa"
+      },
+      "description": "Optimized for RTX 4090 with 24GB VRAM. Uses 8-bit quantization for balanced performance and memory usage."
+    },
+    "rtx_5090": {
+      "name": "NVIDIA RTX 5090",
+      "vram_gb": 32,
+      "recommended_settings": {
+        "model_precision": "16bit",
+        "gpu_device": "single", 
+        "max_new_tokens": 8192,
+        "batch_size": 1,
+        "cache_implementation": "sdpa"
+      },
+      "description": "Optimized for RTX 5090 with 32GB VRAM. Uses 16-bit precision for maximum quality."
+    }
+  },
+  "active_profile": "rtx_4090",
+  "fallback_settings": {
+    "model_precision": "16bit",
+    "gpu_device": "single",
+    "max_new_tokens": 4096,
+    "batch_size": 1,
+    "cache_implementation": "sdpa"
+  },
+  "config_version": "1.0",
+  "last_updated": "2024-12-19"
+}
