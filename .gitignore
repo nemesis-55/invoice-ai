@@ -24,6 +24,7 @@ data/
 data/
 *.csv
 *.json
+!gpu_config.json
 
 # Model files and checkpoints
 checkpoints/
