@@ -4,6 +4,10 @@ FROM runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04
 # Set the working directory in the container
 WORKDIR /
 
+# Configure model precision and GPU usage (can be overridden at runtime)
+ENV MODEL_PRECISION=16bit
+ENV GPU_DEVICE=single
+
 # STEP 1: Uninstall ALL pre-installed torch components for a clean slate.
 RUN pip uninstall -y torch torchvision torchaudio
 
