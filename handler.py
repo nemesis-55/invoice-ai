@@ -26,6 +26,15 @@ MODEL_DPI = 300
 ADAPTOR_TYPE = "GothiaDigitalSolutions/invoice-extractor-3.0"
 cache = os.environ["HF_HOME"]
 
+# Configurable model loading parameters
+MODEL_PRECISION = os.getenv("MODEL_PRECISION", "16bit")  # 16bit, 8bit, or 4bit
+GPU_DEVICE = os.getenv("GPU_DEVICE", "single")  # single, auto, or cuda:0, cuda:1, etc.
+TORCH_DTYPE_MAP = {
+    "16bit": torch.bfloat16,
+    "8bit": torch.bfloat16,  # Still use bfloat16 for computation, 8bit for storage
+    "4bit": torch.bfloat16   # Still use bfloat16 for computation, 4bit for storage
+}
+
 # One-time cache cleanup (remove old unreferenced revisions to free space)
 try:
     cache_info = scan_cache_dir(cache_dir=cache)
@@ -56,19 +65,51 @@ login(os.getenv("HF_TOKEN"))
 
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
-    """Load the main model and tokenizer."""
+    """Load the main model and tokenizer with configurable precision and GPU settings."""
     try:
-        print("Loading tokenizer")
+        print(f"Loading tokenizer for model: {ADAPTOR_TYPE}")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
-        print("Loading model...")
-        model = AutoModel.from_pretrained(
-            ADAPTOR_TYPE,
-            device_map="cuda",
-            attn_implementation="sdpa",
-            trust_remote_code=True, 
-            torch_dtype=torch.bfloat16, 
-            cache_dir=cache
-        ).cuda().eval()
+        
+        # Configure device mapping based on GPU_DEVICE setting
+        if GPU_DEVICE == "single":
+            device_map = "cuda:0" if torch.cuda.is_available() else "cpu"
+        elif GPU_DEVICE == "auto":
+            device_map = "auto"
+        else:
+            device_map = GPU_DEVICE  # Allow custom device specification like "cuda:1"
+        
+        # Configure quantization based on MODEL_PRECISION
+        load_in_8bit = MODEL_PRECISION == "8bit"
+        load_in_4bit = MODEL_PRECISION == "4bit"
+        torch_dtype = TORCH_DTYPE_MAP.get(MODEL_PRECISION, torch.bfloat16)
+        
+        print(f"Loading model with precision: {MODEL_PRECISION}, device_map: {device_map}")
+        print(f"Model configuration: torch_dtype={torch_dtype}, load_in_8bit={load_in_8bit}, load_in_4bit={load_in_4bit}")
+        
+        # Build model loading kwargs
+        model_kwargs = {
+            "device_map": device_map,
+            "attn_implementation": "sdpa",
+            "trust_remote_code": True,
+            "torch_dtype": torch_dtype,
+            "cache_dir": cache
+        }
+        
+        # Add quantization settings if needed
+        if load_in_8bit:
+            model_kwargs["load_in_8bit"] = True
+        elif load_in_4bit:
+            model_kwargs["load_in_4bit"] = True
+        
+        model = AutoModel.from_pretrained(ADAPTOR_TYPE, **model_kwargs)
+        
+        # Only call .cuda() and .eval() if not using quantization and device_map isn't handling it
+        if not load_in_8bit and not load_in_4bit and device_map not in ["auto", "cuda"]:
+            model = model.cuda().eval()
+        else:
+            model = model.eval()
+        
+        # Test model with a simple message
         messages = [
             {"role": "user", "content": "hey"}
         ]
@@ -76,7 +117,7 @@ def load_model_and_tokenizer():
         response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
         print(f"Test response: {response}")
 
-        print("Model loading complete")
+        print(f"Model loading complete with {MODEL_PRECISION} precision on {device_map}")
         return model, tokenizer
     except Exception as e:
         print(f"Failed to load model and tokenizer: {e}")
