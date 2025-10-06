@@ -253,10 +253,12 @@ def handle_assistant_request(data):
         return{"error": f"Invalid prompt payload: {e}"}
     
     images = []
+    print(f"Payload: {payload}")
+    print(f"Attachments: {payload.attachments}")
     if payload.attachments:
         for attachment in payload.attachments:
             try:
-                img_bytes = base64.b64decode(attachment.data)
+                img_bytes = base64.b64decode(attachment.get("data"))
                 image = pdf_to_image(img_bytes)
                 images.append(image)
             except Exception as e:
