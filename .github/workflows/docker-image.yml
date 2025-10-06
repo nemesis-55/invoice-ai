@@ -2,9 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "aditi/feature/feat.6121" ]
+    branches: [ "arindam/feature/feat.6250" ]
   pull_request:
-    branches: [ "aditi/feature/feat.6121" ]
+    branches: [ "arindam/feature/feat.6250" ]
 
 jobs:
   build:

@@ -1,6 +1,7 @@
 import base64
 from models.payloads.PromptPayload import PromptPayload
 from models.payloads.InvoiceExtractionPayload import InvoiceExtractionPayload
+from models.payloads.AssistantPayload import AssistantPayload
 import torch
 from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
@@ -246,11 +247,23 @@ def handle_prompt(data):
 # # Create a new handler function to handle assistant requests
 def handle_assistant_request(data):
     try:
-        payload = PromptPayload(**data)
+        payload = AssistantPayload(**data)
     except TypeError as e:
         print(f"Invalid prompt payload: {e}")
         return{"error": f"Invalid prompt payload: {e}"}
-    messages = [{"role":"user", "content": payload.prompt}]
+    
+    images = []
+    if payload.attachments:
+        for attachment in payload.attachments:
+            try:
+                img_bytes = base64.b64decode(attachment.data)
+                image = pdf_to_image(img_bytes)
+                images.append(image)
+            except Exception as e:
+                print(f"Error decoding attachment image: {e}")
+                return {"error": f"Error decoding attachment image: {e}"}
+
+    messages = [{"role":"user", "content": images + [payload.prompt]}]
     response = perform_inference(messages, model, tokenizer)
     return {"response": response}
 
