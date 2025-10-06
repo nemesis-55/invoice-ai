@@ -1,4 +1,5 @@
 import base64
+from pydantic import ValidationError
 from models.payloads.PromptPayload import PromptPayload
 from models.payloads.InvoiceExtractionPayload import InvoiceExtractionPayload
 from models.payloads.AssistantPayload import AssistantPayload
@@ -146,12 +147,30 @@ def generate_prompt(pdf_bytes):
 def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
+        # free cached memory to reduce chance of OOM due to fragmentation
+        if torch.cuda.is_available():
+            print("Clearing CUDA cache...")
+            torch.cuda.empty_cache()
         with torch.no_grad():
             print(f"Inference messages: {messages}")
             response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
             print(f"Inference response: {response}")
         return response
-    except Exception as e:
+    
+    except RuntimeError as e:
+        # detect CUDA OOM and provide actionable message
+        if "out of memory" in str(e).lower():
+            print(f"Inference failed (OOM): {e}")
+            # try one more time after clearing cache (best-effort)
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+                return response
+            except Exception:
+                raise RuntimeError(
+                    "Inference failed due to CUDA OOM. Reduce max_new_tokens, use model/device offloading or a smaller model."
+                )
         print(f"Inference failed: {e}")
         raise RuntimeError(f"Inference failed: {e}")
 
@@ -179,10 +198,9 @@ def run(request):
 def handle_classification(data):
     try:
         payload = PromptPayload(**data)
-    except TypeError as e:
+    except (TypeError, ValidationError) as e:
         raise TypeError(f"Invalid prompt payload: {e}")
 
-    prompt = payload.prompt
     image_b64 = payload.image
     
     if not image_b64:
@@ -205,7 +223,7 @@ def handle_classification(data):
 def handle_extract_invoice(data):
     try:
         payload = InvoiceExtractionPayload(**data)
-    except TypeError as e:
+    except (TypeError, ValidationError) as e:
         print(f"Invalid prompt payload: {e}")
         return {"error": f"Invalid prompt payload: {e}"}
 
@@ -233,7 +251,7 @@ def handle_extract_invoice(data):
 def handle_prompt(data):
     try:
         payload = PromptPayload(**data)
-    except TypeError as e:
+    except (TypeError, ValidationError) as e:
         print(f"Invalid prompt payload: {e}")
         return {"error": f"Invalid prompt payload: {e}"}
     
@@ -248,17 +266,15 @@ def handle_prompt(data):
 def handle_assistant_request(data):
     try:
         payload = AssistantPayload(**data)
-    except TypeError as e:
+    except (TypeError, ValidationError)  as e:
         print(f"Invalid prompt payload: {e}")
         return{"error": f"Invalid prompt payload: {e}"}
     
     images = []
-    print(f"Payload: {payload}")
-    print(f"Attachments: {payload.attachments}")
     if payload.attachments:
         for attachment in payload.attachments:
             try:
-                img_bytes = base64.b64decode(attachment.get("data"))
+                img_bytes = base64.b64decode(attachment.data)
                 image = pdf_to_image(img_bytes)
                 images.append(image)
             except Exception as e:

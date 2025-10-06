@@ -1,13 +1,11 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 from typing import Optional, List
 
-@dataclass
-class LlmAttachment:
+class LlmAttachment(BaseModel):
     file_name: str
     content_type: str
     data: str
 
-@dataclass
-class AssistantPayload:
+class AssistantPayload(BaseModel):
     prompt: str
     attachments: Optional[List[LlmAttachment]] = None

@@ -1,7 +1,6 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 from typing import Optional
 
-@dataclass
-class PromptPayload:
+class PromptPayload(BaseModel):
     prompt: str
     image: Optional[str] = None # Image is being used for classification

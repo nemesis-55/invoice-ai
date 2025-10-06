@@ -1,6 +1,5 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
-@dataclass
-class InvoiceExtractionPayload:
+class InvoiceExtractionPayload(BaseModel):
     pdf_data: str
     page_number: str = "0"
