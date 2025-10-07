@@ -32,20 +32,26 @@ PROMPT_TEMPLATE = (
             "- ActualFreight\n"
             "- OrderItemsList: a list of lists. Each inner list represents one item and follows the column order:\n"
             "  ['Description', 'HsCode', 'HsCodeExport', 'Quantity', 'ArticleNumber', 'GrossWeight', "
-            "'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece', 'NetAmount']\n"            "- NetWeight\n"
+            "'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece','NetAmount','Discount','DiscountPercentage']\n"            "- NetWeight\n"
             "- OtherAmount\n"
             "- NumberOfUnits\n"
             "Use exact text from the image. If a value is missing, set it to an empty string \"\".\n"
             "Respond with only the JSON object."
         )
         
-def process_page(pickup_id, page_num, data):
+def process_page(pickup_id, page_key, data):
     """Process a single page of raw data."""
     try:
         image_path = data.get("image_path")
         properties = data.get("data", {})
+        
+        # Handle both legacy and new format for unique IDs
+        # Legacy: pickup_id_page_num (e.g., "185486_1")
+        # New multi-PDF: pickup_id_pdf_identifier_page_num (e.g., "185486_invoice_doc_1")
+        unique_id = f"{pickup_id}_{page_key}"
+        
         return {
-            "id": f"{pickup_id}_{page_num}",
+            "id": unique_id,
             "image": image_path,
             "conversations": [
                 {"role": "user", "content": PROMPT_TEMPLATE},
@@ -53,7 +59,7 @@ def process_page(pickup_id, page_num, data):
             ]
         }
     except Exception as e:
-        print(f"Failed to process {pickup_id}_{page_num}: {e}")
+        print(f"Failed to process {pickup_id}_{page_key}: {e}")
         return None
 
 def create_training_data(raw_data_path):
@@ -64,9 +70,9 @@ def create_training_data(raw_data_path):
     training_data = []
     with ThreadPoolExecutor() as executor:
         futures = [
-            executor.submit(process_page, pickup_id, page_num, data)
+            executor.submit(process_page, pickup_id, page_key, data)
             for pickup_id, pages in raw_data.items()
-            for page_num, data in pages.items()
+            for page_key, data in pages.items()
         ]
 
         for future in as_completed(futures):
@@ -74,6 +80,7 @@ def create_training_data(raw_data_path):
             if result:
                 training_data.append(result)
 
+    print(f"Created {len(training_data)} training samples from raw data")
     return training_data
 
 def split_data(data, train_path, test_path, split_ratio=SPLIT_RATIO):
