@@ -17,8 +17,8 @@ import json
 import io
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
-cache_name_env = os.getenv("INVOICE_AI_CACHE_DIR", "test-cache").strip()
-adaptor_type_env = os.getenv("MODEL_ADAPTOR", "GothiaDigitalSolutions/invoice-extractor-2.0").strip()
+cache_name_env = os.getenv("INVOICE_AI_CACHE_DIR", "cache").strip()
+adaptor_type_env = os.getenv("MODEL_ADAPTOR", "GothiaDigitalSolutions/invoice-extractor-3.0").strip()
 
 CACHE_DIR = f"/runpod-volume/{cache_name_env}"
 os.environ["HF_HOME"] = CACHE_DIR
