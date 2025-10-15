@@ -79,7 +79,7 @@ def load_model_and_tokenizer():
 
         # Heuristic: if adaptor name contains 'qwen' use Qwen2VLForConditionalGeneration + AutoProcessor
         adaptor_low = ADAPTOR_TYPE.lower()
-        if "qwen" in adaptor_low or "qwen2" in adaptor_low:
+        if "axolotl" in adaptor_low:
             print("Detected Qwen-family adaptor, attempting Qwen2VLForConditionalGeneration + AutoProcessor")
 
             # Processor: try adapter repo first, then fall back to a base HF model if preprocessor isn't present
