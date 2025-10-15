@@ -72,6 +72,7 @@ def load_model_and_tokenizer():
             ADAPTOR_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
+            torch_dtype=torch.bfloat16, 
             trust_remote_code=True,
             cache_dir=cache
         ).cuda().eval()
