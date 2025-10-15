@@ -6,7 +6,7 @@ from models.payloads.AssistantPayload import AssistantPayload
 import torch
 from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
-from transformers import AutoTokenizer, AutoModel, AutoModelForVision2Seq
+from transformers import AutoTokenizer, AutoModel, AutoModelForVision2Seq, Qwen2VLForConditionalGeneration, AutoProcessor
 import runpod
 from huggingface_hub import login, scan_cache_dir
 import base64
@@ -68,7 +68,7 @@ def load_model_and_tokenizer():
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading model...")
-        model = AutoModelForVision2Seq.from_pretrained(
+        model = Qwen2VLForConditionalGeneration.from_pretrained(
             ADAPTOR_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
@@ -77,12 +77,15 @@ def load_model_and_tokenizer():
             cache_dir=cache
         ).cuda().eval()
         messages = [
-            {"role": "user", "content": "hey"}
+            {"role": "user", "content": [Image.new("RGB", (100, 100)), "hey"]}
         ]
         print(f"Test messages: {messages}")
-        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+        response = model.generate(
+            input_ids=tokenizer(messages[0]["content"][1], return_tensors="pt").input_ids.cuda(),
+            images=[messages[0]["content"][0]],
+            max_new_tokens=128
+        )
         print(f"Test response: {response}")
-
         print("Model loading complete")
         return model, tokenizer
     except Exception as e:
