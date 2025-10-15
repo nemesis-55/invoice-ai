@@ -79,17 +79,51 @@ def load_model_and_tokenizer():
 
         # Heuristic: if adaptor name contains 'qwen' use Qwen2VLForConditionalGeneration + AutoProcessor
         adaptor_low = ADAPTOR_TYPE.lower()
-        if "axolotl" in adaptor_low:
-            print("Detected Qwen-family adaptor, loading Qwen2VLForConditionalGeneration + AutoProcessor")
-            processor = AutoProcessor.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, cache_dir=cache)
-            model = Qwen2VLForConditionalGeneration.from_pretrained(
-                ADAPTOR_TYPE,
-                device_map="cuda",
-                attn_implementation="sdpa",
-                torch_dtype=torch.bfloat16,
-                trust_remote_code=True,
-                cache_dir=cache,
-            ).cuda().eval()
+        if "qwen" in adaptor_low or "qwen2" in adaptor_low:
+            print("Detected Qwen-family adaptor, attempting Qwen2VLForConditionalGeneration + AutoProcessor")
+
+            # Processor: try adapter repo first, then fall back to a base HF model if preprocessor isn't present
+            base_model = os.getenv("HF_BASE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+            try:
+                processor = AutoProcessor.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, cache_dir=cache)
+                print(f"Loaded processor from adapter repo: {ADAPTOR_TYPE}")
+            except Exception as e:
+                print(f"Processor not found in adapter repo ({ADAPTOR_TYPE}): {e}. Falling back to base processor: {base_model}")
+                processor = AutoProcessor.from_pretrained(base_model, trust_remote_code=True, cache_dir=cache)
+
+            # Model weights: adapter repos often only contain adapter/safetensors.
+            # Try loading a full model from the adapter repo; if that fails, load the base
+            # Qwen model and attach the adapter with PeftModel.from_pretrained.
+            try:
+                model = Qwen2VLForConditionalGeneration.from_pretrained(
+                    ADAPTOR_TYPE,
+                    device_map="cuda",
+                    attn_implementation="sdpa",
+                    torch_dtype=torch.bfloat16,
+                    trust_remote_code=True,
+                    cache_dir=cache,
+                ).cuda().eval()
+                print(f"Loaded full model from {ADAPTOR_TYPE}")
+            except Exception as e:
+                print(f"Failed to load full model from adapter repo ({ADAPTOR_TYPE}): {e}\nLoading base model {base_model} and applying adapter via PEFT")
+                base = Qwen2VLForConditionalGeneration.from_pretrained(
+                    base_model,
+                    device_map="cuda",
+                    attn_implementation="sdpa",
+                    torch_dtype=torch.bfloat16,
+                    trust_remote_code=True,
+                    cache_dir=cache,
+                )
+                # Wrap base model with adapter weights (adapter repo path)
+                try:
+                    model = PeftModel.from_pretrained(base, ADAPTOR_TYPE, device_map="cuda")
+                    model = model.cuda().eval()
+                    print(f"Applied adapter from {ADAPTOR_TYPE} on base model {base_model}")
+                except Exception as e2:
+                    print(f"Failed to apply PEFT adapter from {ADAPTOR_TYPE}: {e2}")
+                    # As a last resort, expose base model (may not have adapter behavior)
+                    model = base.cuda().eval()
+
             backend = "qwen_vl"
         else:
             print("Loading legacy chat-style model (AutoModel)")
