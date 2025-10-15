@@ -5,7 +5,7 @@
 export BLOB_URL="https://saascustomsportalstorage.blob.core.windows.net/pickupfiles?sp=rli&st=2025-01-16T15:04:44Z&se=2026-01-16T23:04:44Z&sv=2022-11-02&sr=c&sig=GmbLCUpv%2F7TsLxvzWS0Y%2BEfYlcHxtxTzgz4hwHJN12c%3D"
 
 # Pickup IDs (comma separated)
-export PICKUP_IDS="197731"
+export PICKUP_IDS="160633,159675,159674,159565,159230,158943,158942,158156,157697,157696,157695,156047"
 
 # Directory paths
 export PDF_OUTPUT_DIR="./data/pdf"

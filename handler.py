@@ -6,7 +6,7 @@ from models.payloads.AssistantPayload import AssistantPayload
 import torch
 from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, AutoModelForVision2Seq
 import runpod
 from huggingface_hub import login, scan_cache_dir
 import base64
@@ -68,12 +68,11 @@ def load_model_and_tokenizer():
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
         print("Loading model...")
-        model = AutoModel.from_pretrained(
+        model = AutoModelForVision2Seq.from_pretrained(
             ADAPTOR_TYPE,
             device_map="cuda",
             attn_implementation="sdpa",
-            trust_remote_code=True, 
-            torch_dtype=torch.bfloat16, 
+            trust_remote_code=True,
             cache_dir=cache
         ).cuda().eval()
         messages = [
