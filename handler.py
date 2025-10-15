@@ -7,6 +7,11 @@ import torch
 from PIL import Image
 import fitz  # PyMuPDF for handling PDFs
 from transformers import AutoTokenizer, AutoModel, AutoModelForVision2Seq, Qwen2VLForConditionalGeneration, AutoProcessor
+# qwen_vl utilities (may come from qwen2.5-vl repo / package)
+try:
+    from qwen_vl_utils import process_vision_info
+except Exception:
+    process_vision_info = None
 import runpod
 from huggingface_hub import login, scan_cache_dir
 import base64
@@ -62,35 +67,48 @@ login(os.getenv("HF_TOKEN"))
 
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
-    """Load the main model and tokenizer."""
+    """Load the main model, tokenizer and (optionally) processor.
+
+    Returns: (model, tokenizer, processor_or_None, backend_str)
+    backend_str is one of 'chat' (legacy model.chat) or 'qwen_vl' (processor+generate).
+    """
     try:
         print(f"Loading tokenizer and model for adaptor: {ADAPTOR_TYPE}")
         print("Loading tokenizer")
-        tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
-        print("Loading model...")
-        model = Qwen2VLForConditionalGeneration.from_pretrained(
-            ADAPTOR_TYPE,
-            device_map="cuda",
-            attn_implementation="sdpa",
-            torch_dtype=torch.bfloat16, 
-            trust_remote_code=True,
-            cache_dir=cache
-        ).cuda().eval()
-        messages = [
-            {"role": "user", "content": [Image.new("RGB", (100, 100)), "hey"]}
-        ]
-        print(f"Test messages: {messages}")
-        response = model.generate(
-            input_ids=tokenizer(messages[0]["content"][1], return_tensors="pt").input_ids.cuda(),
-            images=[messages[0]["content"][0]],
-            max_new_tokens=128
-        )
-        print(f"Test response: {response}")
+        tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, cache_dir=cache)
+
+        # Heuristic: if adaptor name contains 'qwen' use Qwen2VLForConditionalGeneration + AutoProcessor
+        adaptor_low = ADAPTOR_TYPE.lower()
+        if "axolotl" in adaptor_low:
+            print("Detected Qwen-family adaptor, loading Qwen2VLForConditionalGeneration + AutoProcessor")
+            processor = AutoProcessor.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True, cache_dir=cache)
+            model = Qwen2VLForConditionalGeneration.from_pretrained(
+                ADAPTOR_TYPE,
+                device_map="cuda",
+                attn_implementation="sdpa",
+                torch_dtype=torch.bfloat16,
+                trust_remote_code=True,
+                cache_dir=cache,
+            ).cuda().eval()
+            backend = "qwen_vl"
+        else:
+            print("Loading legacy chat-style model (AutoModel)")
+            processor = None
+            model = AutoModel.from_pretrained(
+                ADAPTOR_TYPE,
+                device_map="cuda",
+                attn_implementation="sdpa",
+                torch_dtype=torch.bfloat16,
+                trust_remote_code=True,
+                cache_dir=cache,
+            ).cuda().eval()
+            backend = "chat"
+
         print("Model loading complete")
-        return model, tokenizer
+        return model, tokenizer, processor, backend
     except Exception as e:
         print(f"Failed to load model and tokenizer: {e}")
-        return None, None
+        return None, None, None, None
 
 
 # Convert PDF Page to Image
@@ -147,19 +165,102 @@ def generate_prompt(pdf_bytes):
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
-def perform_inference(messages, model, tokenizer):
-    """Perform model inference."""
+def perform_inference(messages, model, tokenizer, processor=None, backend="chat", max_new_tokens=8192):
+    """Perform model inference.
+
+    Supports two backends:
+    - 'chat': legacy models that implement model.chat(msgs=..., tokenizer=...)
+    - 'qwen_vl': Qwen2-VL style models that require a processor and process_vision_info -> model.generate
+    """
     try:
         # free cached memory to reduce chance of OOM due to fragmentation
         if torch.cuda.is_available():
             print("Clearing CUDA cache...")
             torch.cuda.empty_cache()
-        with torch.no_grad():
-            print(f"Inference messages: {messages}")
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
-            print(f"Inference response: {response}")
-        return response
-    
+
+        print(f"Inference backend: {backend}")
+
+        if backend == "chat":
+            with torch.no_grad():
+                print(f"Inference messages (chat): {messages}")
+                response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=max_new_tokens)
+                print(f"Inference response: {response}")
+            return response
+
+        elif backend == "qwen_vl":
+            if processor is None or process_vision_info is None:
+                raise RuntimeError("Qwen VL backend requested but processor or process_vision_info is unavailable.")
+
+            # Normalize messages to the qwen expected format: list of dicts where content is list of dicts
+            def normalize_for_qwen(msgs):
+                qwen_msgs = []
+                for m in msgs:
+                    role = m.get("role", "user")
+                    content = m.get("content")
+                    # if content is a single string (legacy handler_prompt), wrap
+                    if isinstance(content, str):
+                        q_content = [{"type": "text", "text": content}]
+                    elif isinstance(content, list):
+                        q_content = []
+                        for part in content:
+                            # PIL.Image -> image entry
+                            if isinstance(part, Image.Image):
+                                q_content.append({"type": "image", "image": part})
+                            elif isinstance(part, dict) and part.get("type") in ("image", "text", "video"):
+                                q_content.append(part)
+                            else:
+                                # default to text
+                                q_content.append({"type": "text", "text": str(part)})
+                    else:
+                        # unknown content type
+                        q_content = [{"type": "text", "text": str(content)}]
+
+                    qwen_msgs.append({"role": role, "content": q_content})
+                return qwen_msgs
+
+            qwen_messages = normalize_for_qwen(messages)
+            print(f"Qwen-formatted messages: {qwen_messages}")
+
+            # apply chat template
+            text = processor.apply_chat_template(qwen_messages, tokenize=False, add_generation_prompt=True)
+
+            # process images/videos
+            image_inputs, video_inputs, video_kwargs = process_vision_info(qwen_messages, return_video_kwargs=True)
+
+            mm_data = {}
+            if image_inputs is not None:
+                mm_data["image"] = image_inputs
+            if video_inputs is not None:
+                mm_data["video"] = video_inputs
+
+            # prepare inputs for model.generate
+            inputs = processor(
+                text=[text],
+                images=image_inputs,
+                videos=video_inputs,
+                padding=True,
+                return_tensors="pt",
+                **(video_kwargs or {}),
+            )
+
+            inputs = inputs.to(model.device)
+            print("Running model.generate for qwen_vl backend...")
+            generated_ids = model.generate(**inputs, max_new_tokens=min(max_new_tokens, 2048))
+
+            # trim prompt tokens and decode
+            generated_ids_trimmed = [
+                out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            output_texts = processor.batch_decode(
+                generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )
+            print(f"Qwen output_texts: {output_texts}")
+            # single message -> return first element
+            return output_texts[0] if isinstance(output_texts, (list, tuple)) and len(output_texts) > 0 else output_texts
+
+        else:
+            raise RuntimeError(f"Unknown backend: {backend}")
+
     except RuntimeError as e:
         # detect CUDA OOM and provide actionable message
         if "out of memory" in str(e).lower():
@@ -168,8 +269,11 @@ def perform_inference(messages, model, tokenizer):
             try:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
-                response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
-                return response
+                if backend == "chat":
+                    response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+                    return response
+                else:
+                    raise RuntimeError("OOM on qwen_vl backend; reduce image size or use a smaller model.")
             except Exception:
                 raise RuntimeError(
                     "Inference failed due to CUDA OOM. Reduce max_new_tokens, use model/device offloading or a smaller model."
@@ -216,7 +320,7 @@ def handle_classification(data):
         raise ValueError(f"Error decoding image: {e}")
     
     messages = [{"role": "user", "content": [image, payload.prompt]}]
-    response = perform_inference(messages, model, tokenizer)
+    response = perform_inference(messages, model, tokenizer, processor=processor, backend=backend)
     try:
         response = json.loads(response)
     except Exception:
@@ -239,7 +343,7 @@ def handle_extract_invoice(data):
 
     pdf_bytes = base64.b64decode(pdf_data)
     prompt = generate_prompt(pdf_bytes)
-    response = perform_inference(prompt, model, tokenizer)
+    response = perform_inference(prompt, model, tokenizer, processor=processor, backend=backend)
 
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
     response = json.loads(response)
@@ -259,7 +363,7 @@ def handle_prompt(data):
         return {"error": f"Invalid prompt payload: {e}"}
     
     messages = [{"role": "user", "content": payload.prompt}]
-    response = perform_inference(messages, model, tokenizer)
+    response = perform_inference(messages, model, tokenizer, processor=processor, backend=backend)
 
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
     response = json.loads(response)
@@ -285,14 +389,14 @@ def handle_assistant_request(data):
                 return {"error": f"Error decoding attachment image: {e}"}
 
     messages = [{"role":"user", "content": images + [payload.prompt]}]
-    response = perform_inference(messages, model, tokenizer)
+    response = perform_inference(messages, model, tokenizer, processor=processor, backend=backend)
     return {"response": response}
 
 
 
 start_time = time.time()
-model, tokenizer = load_model_and_tokenizer()
-print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+model, tokenizer, processor, backend = load_model_and_tokenizer()
+print(f"Model loaded in {time.time() - start_time:.2f} seconds (backend={backend})")
 
 
 # Initialize and Start RunPod Handler
