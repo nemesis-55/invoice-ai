@@ -31,6 +31,7 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 MODEL_DPI = 300
 ADAPTOR_TYPE = adaptor_type_env
 cache = os.environ["HF_HOME"]
+MODEL_LOAD_ERROR = None
 
 # One-time cache cleanup (remove old unreferenced revisions to free space)
 try:
@@ -63,31 +64,76 @@ login(os.getenv("HF_TOKEN"))
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
+
+    global MODEL_LOAD_ERROR
     try:
+        start_time = time.time()
+        
         print(f"Loading tokenizer and model for adaptor: {ADAPTOR_TYPE}")
         print("Loading tokenizer")
         tokenizer = AutoTokenizer.from_pretrained(ADAPTOR_TYPE, trust_remote_code=True)
+        print("Tokenizer loaded successfully")
+    except Exception as e:
+        MODEL_LOAD_ERROR = f"Failed to load tokenizer: {str(e)}"
+        print(f"Failed to load tokenizer: {MODEL_LOAD_ERROR}")
+        return None, None
+    
+    try:
         print("Loading model...")
         model = AutoModel.from_pretrained(
             ADAPTOR_TYPE,
-            device_map="cuda",
+            device_map="auto",
             attn_implementation="sdpa",
             trust_remote_code=True, 
-            torch_dtype=torch.bfloat16, 
+            torch_dtype=torch.float16, 
             cache_dir=cache
-        ).cuda().eval()
+        ).eval()
+        print("Model loaded successfully")
+        print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+
+    except Exception as e:
+        print(f"Initial model load failed: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
+        
+        # free cached memory to reduce chance of OOM due to fragmentation
+        if torch.cuda.is_available():
+            print("Clearing CUDA cache...")
+            torch.cuda.empty_cache()
+
+            print("Attempting to load model again...")
+            try:
+                model = AutoModel.from_pretrained(
+                    ADAPTOR_TYPE,
+                    device_map="auto",
+                    attn_implementation="sdpa",
+                    trust_remote_code=True, 
+                    torch_dtype=torch.float16, 
+                    cache_dir=cache
+                ).eval()
+                print("Model loaded successfully on second attempt")
+                print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+            except Exception as e2:
+                MODEL_LOAD_ERROR = f"Failed to load model on both attempts: {str(e2)}"
+                print(f"Failed to load model: {MODEL_LOAD_ERROR}")
+                return None, None
+        else:
+            MODEL_LOAD_ERROR = str(e)
+            print(f"Failed to load model and CUDA not available: {MODEL_LOAD_ERROR}")
+            return None, None
+    
+    try:
         messages = [
             {"role": "user", "content": "hey"}
         ]
-        print(f"Test messages: {messages}")
-        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+        print(f"Test message: {messages}")
+        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
         print(f"Test response: {response}")
-
-        print("Model loading complete")
-        return model, tokenizer
     except Exception as e:
-        print(f"Failed to load model and tokenizer: {e}")
-        return None, None
+        print(f"Test inference failed: {str(e)}")
+        print("But model and tokenizer loaded, continuing...")
+
+    print("Model loading complete")
+    return model, tokenizer
 
 
 # Convert PDF Page to Image
@@ -147,13 +193,9 @@ def generate_prompt(pdf_bytes):
 def perform_inference(messages, model, tokenizer):
     """Perform model inference."""
     try:
-        # free cached memory to reduce chance of OOM due to fragmentation
-        if torch.cuda.is_available():
-            print("Clearing CUDA cache...")
-            torch.cuda.empty_cache()
         with torch.no_grad():
             print(f"Inference messages: {messages}")
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
             print(f"Inference response: {response}")
         return response
     
@@ -178,6 +220,19 @@ def perform_inference(messages, model, tokenizer):
 def run(request):
     """Process incoming requests."""
     try:
+        global model, tokenizer, MODEL_LOAD_ERROR
+
+        # Check for model load errors and attempt to reload
+        if MODEL_LOAD_ERROR:
+            print(f"Model load error detected: {MODEL_LOAD_ERROR}. Attempting to reload...")
+            
+            model, tokenizer = load_model_and_tokenizer()
+            if model is None or tokenizer is None:
+                print(f"Model reload failed: {MODEL_LOAD_ERROR}")
+                return {"error": f"Model reload failed: {MODEL_LOAD_ERROR}"}
+
+            print("Model successfully reloaded")
+
         payload = request.get("input", {})
         action = payload.get("action")
         data = payload.get("data", {})
@@ -287,10 +342,7 @@ def handle_assistant_request(data):
 
 
 
-start_time = time.time()
 model, tokenizer = load_model_and_tokenizer()
-print(f"Model loaded in {time.time() - start_time:.2f} seconds")
-
 
 # Initialize and Start RunPod Handler
 if __name__ == "__main__":
