@@ -86,6 +86,7 @@ def load_model_and_tokenizer():
         GPU_DEVICE = os.getenv("GPU_DEVICE", "single").strip()
         GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", "40GiB").strip()
         CPU_MAX_MEMORY = os.getenv("CPU_MAX_MEMORY", "16GiB").strip()
+        NUM_GPUS = int(os.getenv("NUM_GPUS", "0").strip())  # 0 = auto-detect
         
         if GPU_DEVICE == "single":
             device_map = "cuda:0"
@@ -103,11 +104,29 @@ def load_model_and_tokenizer():
             "cache_dir": cache,
         }
         if device_map == "auto":
-            load_kwargs["max_memory"] = {0: GPU_MAX_MEMORY, "cpu": CPU_MAX_MEMORY}
+            # Auto-detect GPU count or use user-specified value
+            if NUM_GPUS <= 0:
+                detected_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
+            else:
+                detected_gpus = NUM_GPUS
+            
+            print(f"Multi-GPU mode: detected/configured {detected_gpus} GPU(s)")
+            
+            # Build max_memory dict for ALL available GPUs
+            max_mem = {i: GPU_MAX_MEMORY for i in range(detected_gpus)}
+            max_mem["cpu"] = CPU_MAX_MEMORY
+            load_kwargs["max_memory"] = max_mem
+            
+            print(f"Memory budget: {max_mem}")
 
         model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
         print("Model loaded successfully")
         print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+        
+        # Log which devices the model landed on
+        if hasattr(model, 'hf_device_map'):
+            devices_used = set(str(v) for v in model.hf_device_map.values())
+            print(f"Model distributed across devices: {devices_used}")
 
     except Exception as e:
         print(f"Initial model load failed: {str(e)}")
@@ -128,11 +147,29 @@ def load_model_and_tokenizer():
                     "cache_dir": cache,
                 }
                 if device_map == "auto":
-                    load_kwargs["max_memory"] = {0: GPU_MAX_MEMORY, "cpu": CPU_MAX_MEMORY}
+                    # Auto-detect GPU count or use user-specified value
+                    if NUM_GPUS <= 0:
+                        detected_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
+                    else:
+                        detected_gpus = NUM_GPUS
+                    
+                    print(f"Multi-GPU mode (retry): detected/configured {detected_gpus} GPU(s)")
+                    
+                    # Build max_memory dict for ALL available GPUs
+                    max_mem = {i: GPU_MAX_MEMORY for i in range(detected_gpus)}
+                    max_mem["cpu"] = CPU_MAX_MEMORY
+                    load_kwargs["max_memory"] = max_mem
+                    
+                    print(f"Memory budget (retry): {max_mem}")
 
                 model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
                 print("Model loaded successfully on second attempt")
                 print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+                
+                # Log which devices the model landed on
+                if hasattr(model, 'hf_device_map'):
+                    devices_used = set(str(v) for v in model.hf_device_map.values())
+                    print(f"Model distributed across devices: {devices_used}")
             except Exception as e2:
                 MODEL_LOAD_ERROR = f"Failed to load model on both attempts: {str(e2)}"
                 print(f"Failed to load model: {MODEL_LOAD_ERROR}")
