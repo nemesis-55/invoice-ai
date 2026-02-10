@@ -75,6 +75,7 @@ docker build -t invoice-ai .
 **New base image:**
 - Old: `runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04`
 - New: `runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04`
+- **PyTorch**: 2.6.0 (security patch for RCE vulnerability in torch.load)
 
 ### API Changes
 
@@ -222,5 +223,6 @@ For issues or questions:
 - ✨ Added Deep Thinking mode support
 - ✨ Added LLaMA-Factory incremental LoRA training
 - 🐛 Fixed 6 bugs in handler.py
-- 📦 Updated dependencies (PyTorch 2.4.0, CUDA 12.4.1)
+- 📦 Updated dependencies (PyTorch 2.6.0, CUDA 12.4.1)
+- 🔒 Security: Patched PyTorch RCE vulnerability in torch.load
 - 📚 Comprehensive training documentation
