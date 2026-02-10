@@ -55,7 +55,7 @@ GPU_PROFILE_SETTINGS = load_gpu_profile() or {}
 # Deep thinking mode: consider profile default, but env var always overrides
 DEEP_THINKING = os.getenv("DEEP_THINKING", str(GPU_PROFILE_SETTINGS.get("deep_thinking", False))).strip().lower() == "true"
 
-# Default max tokens from profile or env var
+# Default max tokens from profile or env var (MAX_NEW_TOKENS for backward compatibility with existing deployments)
 DEFAULT_MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", str(GPU_PROFILE_SETTINGS.get("max_new_tokens", 512))).strip())
 
 CACHE_DIR = f"/runpod-volume/{cache_name_env}"
@@ -100,6 +100,7 @@ login(os.getenv("HF_TOKEN"))
 # Helper function for device map configuration
 def get_device_load_kwargs(device_map, retry=False):
     """Build load_kwargs with device map and memory budget configuration."""
+    # Default to 40GiB if no profile or env var set (conservative default for most GPUs)
     GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", GPU_PROFILE_SETTINGS.get("gpu_max_memory", "40GiB")).strip()
     CPU_MAX_MEMORY = os.getenv("CPU_MAX_MEMORY", "16GiB").strip()
     NUM_GPUS = int(os.getenv("NUM_GPUS", "0").strip())  # 0 = auto-detect

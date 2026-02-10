@@ -245,6 +245,8 @@ docker run -e GPU_PROFILE=rtx_pro_6000 ...
 - Batch size 4 for higher throughput
 - 96GB GDDR7 VRAM handles the full model + KV cache with massive headroom
 
+**Note**: The memory budget (90GiB) is intentionally set below total VRAM (96GB) to leave ~6GB headroom for PyTorch CUDA allocator overhead, kernel buffers, and other GPU operations. This prevents out-of-memory errors and ensures stable operation.
+
 **Note**: Environment variables ALWAYS override profile settings for backward compatibility.
 
 ## Changelog
