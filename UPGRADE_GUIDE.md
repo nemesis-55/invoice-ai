@@ -216,6 +216,37 @@ For issues or questions:
 - Review the [MiniCPM-V 4.5 model card](https://huggingface.co/openbmb/MiniCPM-V-4_5)
 - Check handler.py for implementation details
 
+## GPU Profile Configuration
+
+The system supports pre-configured GPU profiles for optimal settings. Edit `gpu_config.json` to select your GPU:
+
+### Supported GPUs
+| GPU | VRAM | Precision | Max Tokens | Memory Budget |
+|-----|------|-----------|------------|---------------|
+| RTX 4090 | 24GB | 16-bit | 4096 | 22GiB |
+| RTX 5090 | 32GB | 16-bit | 8192 | 30GiB |
+| RTX PRO 6000 | 96GB | 16-bit | 16384 | 90GiB |
+
+### Switching GPU Profile
+
+**Option 1: Edit gpu_config.json**
+```json
+"active_profile": "rtx_pro_6000"
+```
+
+**Option 2: Environment variable**
+```bash
+docker run -e GPU_PROFILE=rtx_pro_6000 ...
+```
+
+### RTX PRO 6000 Benefits
+- Full 16-bit precision with 90GiB memory budget
+- Deep thinking enabled by default (16384 max tokens)
+- Batch size 4 for higher throughput
+- 96GB GDDR7 VRAM handles the full model + KV cache with massive headroom
+
+**Note**: Environment variables ALWAYS override profile settings for backward compatibility.
+
 ## Changelog
 
 ### v4.5.0 - MiniCPM-V 4.5 Upgrade

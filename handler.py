@@ -17,11 +17,46 @@ from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
 import io
+import pathlib
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
 cache_name_env = os.getenv("INVOICE_AI_CACHE_DIR", "cache").strip()
 adaptor_type_env = os.getenv("MODEL_ADAPTOR", "openbmb/MiniCPM-V-4_5").strip()
-DEEP_THINKING = os.getenv("DEEP_THINKING", "false").strip().lower() == "true"
+
+# GPU Profile Configuration
+def load_gpu_profile():
+    """Load GPU profile from gpu_config.json if available."""
+    config_path = pathlib.Path(__file__).parent / "gpu_config.json"
+    if not config_path.exists():
+        print("No gpu_config.json found, using environment variable defaults")
+        return None
+    
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+        
+        # Allow GPU_PROFILE env var to override active_profile in config
+        profile_name = os.getenv("GPU_PROFILE", "").strip() or config.get("active_profile", "")
+        profiles = config.get("gpu_profiles", {})
+        
+        if profile_name and profile_name in profiles:
+            profile = profiles[profile_name]
+            print(f"GPU Profile: {profile.get('name', profile_name)} ({profile.get('vram_gb', '?')}GB VRAM)")
+            return profile.get("recommended_settings", {})
+        else:
+            print(f"GPU profile '{profile_name}' not found, using fallback settings")
+            return config.get("fallback_settings", {})
+    except Exception as e:
+        print(f"Error loading GPU profile: {e}")
+        return None
+
+GPU_PROFILE_SETTINGS = load_gpu_profile() or {}
+
+# Deep thinking mode: consider profile default, but env var always overrides
+DEEP_THINKING = os.getenv("DEEP_THINKING", str(GPU_PROFILE_SETTINGS.get("deep_thinking", False))).strip().lower() == "true"
+
+# Default max tokens from profile or env var
+DEFAULT_MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", str(GPU_PROFILE_SETTINGS.get("max_new_tokens", 512))).strip())
 
 CACHE_DIR = f"/runpod-volume/{cache_name_env}"
 os.environ["HF_HOME"] = CACHE_DIR
@@ -65,7 +100,7 @@ login(os.getenv("HF_TOKEN"))
 # Helper function for device map configuration
 def get_device_load_kwargs(device_map, retry=False):
     """Build load_kwargs with device map and memory budget configuration."""
-    GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", "40GiB").strip()
+    GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", GPU_PROFILE_SETTINGS.get("gpu_max_memory", "40GiB")).strip()
     CPU_MAX_MEMORY = os.getenv("CPU_MAX_MEMORY", "16GiB").strip()
     NUM_GPUS = int(os.getenv("NUM_GPUS", "0").strip())  # 0 = auto-detect
     
@@ -351,7 +386,7 @@ def handle_classification(data):
         
         # Determine if deep thinking should be used
         use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
-        max_tokens = 2048 if use_deep_thinking else 512
+        max_tokens = 2048 if use_deep_thinking else DEFAULT_MAX_NEW_TOKENS
         
         messages = [{"role": "user", "content": [image, payload.prompt]}]
         messages = prepare_messages_with_thinking(messages, use_deep_thinking)
@@ -389,7 +424,7 @@ def handle_extract_invoice(data):
     
     # Determine if deep thinking should be used
     use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
-    max_tokens = 2048 if use_deep_thinking else 512
+    max_tokens = 2048 if use_deep_thinking else DEFAULT_MAX_NEW_TOKENS
     
     prompt = prepare_messages_with_thinking(prompt, use_deep_thinking)
     response = perform_inference(prompt, model, tokenizer, max_new_tokens=max_tokens)
@@ -420,7 +455,7 @@ def handle_prompt(data):
     
     # Determine if deep thinking should be used
     use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
-    max_tokens = 2048 if use_deep_thinking else 512
+    max_tokens = 2048 if use_deep_thinking else DEFAULT_MAX_NEW_TOKENS
     
     messages = [{"role": "user", "content": payload.prompt}]
     messages = prepare_messages_with_thinking(messages, use_deep_thinking)
@@ -456,7 +491,7 @@ def handle_assistant_request(data):
 
     # Determine if deep thinking should be used
     use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
-    max_tokens = 2048 if use_deep_thinking else 512
+    max_tokens = 2048 if use_deep_thinking else DEFAULT_MAX_NEW_TOKENS
 
     messages = [{"role": "user", "content": images + [payload.prompt]}]
     messages = prepare_messages_with_thinking(messages, use_deep_thinking)
