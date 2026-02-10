@@ -10,15 +10,7 @@ ENV DEEP_THINKING=false
 # Set the working directory in the container
 WORKDIR /
 
-# STEP 1: Uninstall ALL pre-installed torch components for a clean slate.
-RUN pip uninstall -y torch torchvision torchaudio
-
-# STEP 2: FIRST, install ONLY torch and its direct companions.
-# This ensures torch is present before anything else tries to use it.
-# Updated to torch 2.6.0 to patch torch.load RCE vulnerability
-RUN pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
-
-# Install system dependencies
+# Install system dependencies first (smallest layer)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libsm6 \
@@ -26,19 +18,26 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     tesseract-ocr \
     libmagic1 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Install Python dependencies
+# STEP 1: Uninstall and reinstall torch in a single layer to save space
+# This prevents having both versions on disk simultaneously
+RUN pip uninstall -y torch torchvision torchaudio && \
+    pip cache purge && \
+    pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 && \
+    find /usr/local/lib/python3.11/dist-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+# Install Python dependencies and clean up in same layer to save space
 COPY requirements.txt ./
-
-
-
-# Copy the handler.py file into the container
 COPY handler.py .
 COPY helper/ ./helper/
 COPY models/ ./models/
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip cache purge && \
+    find /usr/local/lib/python3.11/dist-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local/lib/python3.11/dist-packages -type f -name "*.pyc" -delete 2>/dev/null || true
 
 
 # Expose port for the API
