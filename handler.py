@@ -62,6 +62,40 @@ except Exception as e:
 # Hugging Face login
 login(os.getenv("HF_TOKEN"))
 
+# Helper function for device map configuration
+def get_device_load_kwargs(device_map, retry=False):
+    """Build load_kwargs with device map and memory budget configuration."""
+    GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", "40GiB").strip()
+    CPU_MAX_MEMORY = os.getenv("CPU_MAX_MEMORY", "16GiB").strip()
+    NUM_GPUS = int(os.getenv("NUM_GPUS", "0").strip())  # 0 = auto-detect
+    
+    load_kwargs = {
+        "device_map": device_map,
+        "attn_implementation": "sdpa",
+        "trust_remote_code": True,
+        "torch_dtype": torch.bfloat16,
+        "cache_dir": cache,
+    }
+    
+    if device_map == "auto":
+        # Auto-detect GPU count or use user-specified value
+        if NUM_GPUS <= 0:
+            detected_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
+        else:
+            detected_gpus = NUM_GPUS
+        
+        retry_label = " (retry)" if retry else ""
+        print(f"Multi-GPU mode{retry_label}: detected/configured {detected_gpus} GPU(s)")
+        
+        # Build max_memory dict for ALL available GPUs
+        max_mem = {i: GPU_MAX_MEMORY for i in range(detected_gpus)}
+        max_mem["cpu"] = CPU_MAX_MEMORY
+        load_kwargs["max_memory"] = max_mem
+        
+        print(f"Memory budget{retry_label}: {max_mem}")
+    
+    return load_kwargs
+
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
@@ -84,9 +118,6 @@ def load_model_and_tokenizer():
         
         # Determine device map
         GPU_DEVICE = os.getenv("GPU_DEVICE", "single").strip()
-        GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", "40GiB").strip()
-        CPU_MAX_MEMORY = os.getenv("CPU_MAX_MEMORY", "16GiB").strip()
-        NUM_GPUS = int(os.getenv("NUM_GPUS", "0").strip())  # 0 = auto-detect
         
         if GPU_DEVICE == "single":
             device_map = "cuda:0"
@@ -95,29 +126,8 @@ def load_model_and_tokenizer():
         else:
             device_map = GPU_DEVICE
 
-        # For auto device map, set explicit memory budget
-        load_kwargs = {
-            "device_map": device_map,
-            "attn_implementation": "sdpa",
-            "trust_remote_code": True,
-            "torch_dtype": torch.bfloat16,
-            "cache_dir": cache,
-        }
-        if device_map == "auto":
-            # Auto-detect GPU count or use user-specified value
-            if NUM_GPUS <= 0:
-                detected_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
-            else:
-                detected_gpus = NUM_GPUS
-            
-            print(f"Multi-GPU mode: detected/configured {detected_gpus} GPU(s)")
-            
-            # Build max_memory dict for ALL available GPUs
-            max_mem = {i: GPU_MAX_MEMORY for i in range(detected_gpus)}
-            max_mem["cpu"] = CPU_MAX_MEMORY
-            load_kwargs["max_memory"] = max_mem
-            
-            print(f"Memory budget: {max_mem}")
+        # Get load kwargs with device map and memory configuration
+        load_kwargs = get_device_load_kwargs(device_map)
 
         model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
         print("Model loaded successfully")
@@ -139,28 +149,8 @@ def load_model_and_tokenizer():
 
             print("Attempting to load model again...")
             try:
-                load_kwargs = {
-                    "device_map": device_map,
-                    "attn_implementation": "sdpa",
-                    "trust_remote_code": True,
-                    "torch_dtype": torch.bfloat16,
-                    "cache_dir": cache,
-                }
-                if device_map == "auto":
-                    # Auto-detect GPU count or use user-specified value
-                    if NUM_GPUS <= 0:
-                        detected_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
-                    else:
-                        detected_gpus = NUM_GPUS
-                    
-                    print(f"Multi-GPU mode (retry): detected/configured {detected_gpus} GPU(s)")
-                    
-                    # Build max_memory dict for ALL available GPUs
-                    max_mem = {i: GPU_MAX_MEMORY for i in range(detected_gpus)}
-                    max_mem["cpu"] = CPU_MAX_MEMORY
-                    load_kwargs["max_memory"] = max_mem
-                    
-                    print(f"Memory budget (retry): {max_mem}")
+                # Get load kwargs with retry flag
+                load_kwargs = get_device_load_kwargs(device_map, retry=True)
 
                 model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
                 print("Model loaded successfully on second attempt")

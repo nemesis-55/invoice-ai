@@ -15,7 +15,7 @@ RUN pip uninstall -y torch torchvision torchaudio
 
 # STEP 2: FIRST, install ONLY torch and its direct companions.
 # This ensures torch is present before anything else tries to use it.
-# Updated to torch 2.6.0 to patch CVE-2024-XXXXX (torch.load RCE vulnerability)
+# Updated to torch 2.6.0 to patch torch.load RCE vulnerability
 RUN pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
 
 # Install system dependencies
