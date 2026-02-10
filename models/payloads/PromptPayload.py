@@ -4,3 +4,4 @@ from typing import Optional
 class PromptPayload(BaseModel):
     prompt: str
     image: Optional[str] = None # Image is being used for classification
+    deep_thinking: Optional[bool] = None

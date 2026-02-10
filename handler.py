@@ -9,9 +9,6 @@ import fitz  # PyMuPDF for handling PDFs
 from transformers import AutoTokenizer, AutoModel
 import runpod
 from huggingface_hub import login, scan_cache_dir
-import base64
-import fitz  # PyMuPDF
-from peft import PeftModel
 import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
@@ -20,7 +17,8 @@ import io
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
 cache_name_env = os.getenv("INVOICE_AI_CACHE_DIR", "cache").strip()
-adaptor_type_env = os.getenv("MODEL_ADAPTOR", "GothiaDigitalSolutions/invoice-extractor-3.0").strip()
+adaptor_type_env = os.getenv("MODEL_ADAPTOR", "openbmb/MiniCPM-V-4_5").strip()
+deep_thinking_env = os.getenv("DEEP_THINKING", "false").strip().lower() == "true"
 
 CACHE_DIR = f"/runpod-volume/{cache_name_env}"
 os.environ["HF_HOME"] = CACHE_DIR
@@ -61,6 +59,17 @@ except Exception as e:
 # Hugging Face login
 login(os.getenv("HF_TOKEN"))
 
+# Helper function for deep thinking mode
+def prepare_messages_with_thinking(messages, deep_thinking):
+    """Prepend system message for deep thinking mode if enabled."""
+    if deep_thinking:
+        system_msg = {
+            "role": "system",
+            "content": "You are a helpful assistant. Think step by step carefully before responding."
+        }
+        return [system_msg] + messages
+    return messages
+
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
@@ -85,7 +94,7 @@ def load_model_and_tokenizer():
             device_map="auto",
             attn_implementation="sdpa",
             trust_remote_code=True, 
-            torch_dtype=torch.float16, 
+            torch_dtype=torch.bfloat16, 
             cache_dir=cache
         ).eval()
         print("Model loaded successfully")
@@ -107,7 +116,7 @@ def load_model_and_tokenizer():
                     device_map="auto",
                     attn_implementation="sdpa",
                     trust_remote_code=True, 
-                    torch_dtype=torch.float16, 
+                    torch_dtype=torch.bfloat16, 
                     cache_dir=cache
                 ).eval()
                 print("Model loaded successfully on second attempt")
@@ -190,12 +199,18 @@ def generate_prompt(pdf_bytes):
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
-def perform_inference(messages, model, tokenizer):
+def perform_inference(messages, model, tokenizer, deep_thinking=False):
     """Perform model inference."""
     try:
+        # Determine max_new_tokens based on deep thinking mode
+        max_tokens = 2048 if deep_thinking else 512
+        
+        # Prepare messages with thinking mode if needed
+        messages = prepare_messages_with_thinking(messages, deep_thinking)
+        
         with torch.no_grad():
             print(f"Inference messages: {messages}")
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=max_tokens)
             print(f"Inference response: {response}")
         return response
     
@@ -207,7 +222,8 @@ def perform_inference(messages, model, tokenizer):
             try:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
-                response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+                max_tokens = 2048 if deep_thinking else 512
+                response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=max_tokens)
                 return response
             except Exception:
                 raise RuntimeError(
@@ -245,6 +261,8 @@ def run(request):
             return handle_assistant_request(data)
         elif action == "CLASSIFICATION":
             return handle_classification(data)
+        else:
+            return {"error": f"Unknown action: {action}"}
     
     except Exception as e:
         print(f"Exception during processing: {e}")
@@ -254,21 +272,24 @@ def handle_classification(data):
     try:
         payload = PromptPayload(**data)
     except (TypeError, ValidationError) as e:
-        raise TypeError(f"Invalid prompt payload: {e}")
+        return {"error": f"Invalid prompt payload: {e}"}
 
     image_b64 = payload.image
     
     if not image_b64:
-        raise ValueError("Missing image data.")
+        return {"error": "Missing image data."}
 
     try:
         image_bytes = base64.b64decode(image_b64)
         image = Image.open(io.BytesIO(image_bytes))
     except Exception as e:
-        raise ValueError(f"Error decoding image: {e}")
+        return {"error": f"Error decoding image: {e}"}
+    
+    # Determine deep thinking mode
+    deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else deep_thinking_env
     
     messages = [{"role": "user", "content": [image, payload.prompt]}]
-    response = perform_inference(messages, model, tokenizer)
+    response = perform_inference(messages, model, tokenizer, deep_thinking=deep_thinking)
     try:
         response = json.loads(response)
     except Exception:
@@ -289,12 +310,19 @@ def handle_extract_invoice(data):
         print("Missing PDF data.")
         return {"error": "Missing PDF data."}
 
+    # Determine deep thinking mode
+    deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else deep_thinking_env
+
     pdf_bytes = base64.b64decode(pdf_data)
     prompt = generate_prompt(pdf_bytes)
-    response = perform_inference(prompt, model, tokenizer)
+    response = perform_inference(prompt, model, tokenizer, deep_thinking=deep_thinking)
 
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
-    response = json.loads(response)
+    try:
+        response = json.loads(response)
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse JSON response: {e}")
+        return {"error": f"Failed to parse JSON response: {e}"}
     
     # add key value pair for page number in response for all order items
     for item in response.get("OrderItemsList", []):
@@ -310,11 +338,18 @@ def handle_prompt(data):
         print(f"Invalid prompt payload: {e}")
         return {"error": f"Invalid prompt payload: {e}"}
     
+    # Determine deep thinking mode
+    deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else deep_thinking_env
+    
     messages = [{"role": "user", "content": payload.prompt}]
-    response = perform_inference(messages, model, tokenizer)
+    response = perform_inference(messages, model, tokenizer, deep_thinking=deep_thinking)
 
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
-    response = json.loads(response)
+    try:
+        response = json.loads(response)
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse JSON response: {e}")
+        return {"error": f"Failed to parse JSON response: {e}"}
     return {"response": response}
 
 # # Create a new handler function to handle assistant requests
@@ -324,6 +359,9 @@ def handle_assistant_request(data):
     except (TypeError, ValidationError)  as e:
         print(f"Invalid prompt payload: {e}")
         return{"error": f"Invalid prompt payload: {e}"}
+    
+    # Determine deep thinking mode
+    deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else deep_thinking_env
     
     images = []
     if payload.attachments:
@@ -337,7 +375,7 @@ def handle_assistant_request(data):
                 return {"error": f"Error decoding attachment image: {e}"}
 
     messages = [{"role":"user", "content": images + [payload.prompt]}]
-    response = perform_inference(messages, model, tokenizer)
+    response = perform_inference(messages, model, tokenizer, deep_thinking=deep_thinking)
     return {"response": response}
 
 

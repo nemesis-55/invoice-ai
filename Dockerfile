@@ -1,5 +1,6 @@
 # Use the RunPod PyTorch image with CUDA as the base image
-FROM runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04
+# Note: Using newer base image to support torch 2.6.0 (security patch for CVE-2024-XXXXX)
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
 # Set the working directory in the container
 WORKDIR /
@@ -7,9 +8,9 @@ WORKDIR /
 # STEP 1: Uninstall ALL pre-installed torch components for a clean slate.
 RUN pip uninstall -y torch torchvision torchaudio
 
-# STEP 2: FIRST, install ONLY torch and its direct companions.
+# STEP 2: Install torch 2.6.0 (patches RCE vulnerability in torch.load with weights_only=True)
 # This ensures torch is present before anything else tries to use it.
-RUN pip install --no-cache-dir torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2
+RUN pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
