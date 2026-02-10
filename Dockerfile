@@ -4,6 +4,7 @@ FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 # Set memory allocator config for CUDA to prevent memory fragmentation
 ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512,expandable_segments:True
 ENV GPU_DEVICE=single
+ENV NUM_GPUS=0
 ENV DEEP_THINKING=false
 
 # Set the working directory in the container
