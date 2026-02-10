@@ -1,5 +1,8 @@
 import json
 
+# NOTE: The fieldnames here are used to convert list-of-lists back to structured JSON.
+# The order MUST match the column order specified in the invoice extraction prompt in handler.py.
+# If adding/removing/reordering fields in the prompt, update this list accordingly.
 fieldnames = ['Description', 'HsCode', 'HsCodeExport', 'Quantity', 'ArticleNumber', 'GrossWeight', 'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece', 'NetAmount', 'Discount', 'DiscountPercentage' , 'PageNumber']
 def embed_order_items_list_in_json(order_json):
     """
