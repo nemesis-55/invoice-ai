@@ -1,5 +1,5 @@
-# Use the RunPod PyTorch image with CUDA as the base image
-FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
+# Use the RunPod PyTorch runtime image (smaller than devel)
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-runtime-ubuntu22.04
 
 # Set memory allocator config for CUDA to prevent memory fragmentation
 ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512,expandable_segments:True
@@ -10,9 +10,8 @@ ENV DEEP_THINKING=false
 # Set the working directory in the container
 WORKDIR /
 
-# Install system dependencies first (smallest layer)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
     libsm6 \
     libxext6 \
     libxrender-dev \
@@ -21,24 +20,30 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# STEP 1: Uninstall and reinstall torch in a single layer to save space
-# This prevents having both versions on disk simultaneously
+# Uninstall pre-installed torch and install target version
+# Combined into single layer to minimize disk usage
 RUN pip uninstall -y torch torchvision torchaudio && \
     pip cache purge && \
-    pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 && \
-    find /usr/local/lib/python3.11/dist-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    pip install --no-cache-dir \
+        torch==2.6.0 \
+        torchvision==0.21.0 \
+        torchaudio==2.6.0 \
+        --index-url https://download.pytorch.org/whl/cu124
 
-# Install Python dependencies and clean up in same layer to save space
+# Copy application files
 COPY requirements.txt ./
 COPY handler.py .
 COPY helper/ ./helper/
 COPY models/ ./models/
 
+# Install Python dependencies (core requirements without flash_attn)
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip cache purge && \
-    find /usr/local/lib/python3.11/dist-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local/lib/python3.11/dist-packages -type f -name "*.pyc" -delete 2>/dev/null || true
+    pip cache purge
 
+# Try to install flash_attn if pre-built wheel is available, otherwise skip
+# The model uses attn_implementation="sdpa" which works without flash_attn
+RUN pip install --no-cache-dir flash_attn>=2.5.0 || \
+    echo "Flash attention not available, using SDPA fallback"
 
 # Expose port for the API
 EXPOSE 8000
