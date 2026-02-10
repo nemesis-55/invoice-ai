@@ -84,6 +84,9 @@ def load_model_and_tokenizer():
         
         # Determine device map
         GPU_DEVICE = os.getenv("GPU_DEVICE", "single").strip()
+        GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", "40GiB").strip()
+        CPU_MAX_MEMORY = os.getenv("CPU_MAX_MEMORY", "16GiB").strip()
+        
         if GPU_DEVICE == "single":
             device_map = "cuda:0"
         elif GPU_DEVICE == "auto":
@@ -100,7 +103,7 @@ def load_model_and_tokenizer():
             "cache_dir": cache,
         }
         if device_map == "auto":
-            load_kwargs["max_memory"] = {0: "40GiB", "cpu": "16GiB"}
+            load_kwargs["max_memory"] = {0: GPU_MAX_MEMORY, "cpu": CPU_MAX_MEMORY}
 
         model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
         print("Model loaded successfully")
@@ -125,7 +128,7 @@ def load_model_and_tokenizer():
                     "cache_dir": cache,
                 }
                 if device_map == "auto":
-                    load_kwargs["max_memory"] = {0: "40GiB", "cpu": "16GiB"}
+                    load_kwargs["max_memory"] = {0: GPU_MAX_MEMORY, "cpu": CPU_MAX_MEMORY}
 
                 model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
                 print("Model loaded successfully on second attempt")
@@ -179,6 +182,14 @@ def prepare_messages_with_thinking(messages, deep_thinking=False):
         system_msg = {"role": "system", "content": "You are a helpful assistant. Think step by step carefully before responding."}
         return [system_msg] + messages
     return messages
+
+# Clear Image References Helper
+def clear_image_references(messages):
+    """Clear image references from messages to allow garbage collection."""
+    for msg in messages:
+        content = msg.get("content", [])
+        if isinstance(content, list):
+            msg["content"] = [c for c in content if isinstance(c, str)]
 
 # Generate Detailed Prompt
 def generate_prompt(pdf_bytes):
@@ -258,9 +269,9 @@ def run(request):
             print(f"Model load error detected: {MODEL_LOAD_ERROR}. Attempting to reload...")
             
             # Explicitly free old model to prevent VRAM leak during reload
-            if 'model' in dir() and model is not None:
+            if 'model' in globals() and model is not None:
                 del model
-            if 'tokenizer' in dir() and tokenizer is not None:
+            if 'tokenizer' in globals() and tokenizer is not None:
                 del tokenizer
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -321,10 +332,7 @@ def handle_classification(data):
         response = perform_inference(messages, model, tokenizer, max_new_tokens=max_tokens)
         
         # Clear image references from messages to allow GC
-        for msg in messages:
-            content = msg.get("content", [])
-            if isinstance(content, list):
-                msg["content"] = [c for c in content if isinstance(c, str)]
+        clear_image_references(messages)
         
         try:
             response = json.loads(response)
@@ -360,10 +368,7 @@ def handle_extract_invoice(data):
     response = perform_inference(prompt, model, tokenizer, max_new_tokens=max_tokens)
 
     # Clear image references from messages to allow GC
-    for msg in prompt:
-        content = msg.get("content", [])
-        if isinstance(content, list):
-            msg["content"] = [c for c in content if isinstance(c, str)]
+    clear_image_references(prompt)
 
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
     try:
@@ -432,10 +437,7 @@ def handle_assistant_request(data):
     response = perform_inference(messages, model, tokenizer, max_new_tokens=max_tokens)
     
     # Clear image references from messages to allow GC
-    for msg in messages:
-        content = msg.get("content", [])
-        if isinstance(content, list):
-            msg["content"] = [c for c in content if isinstance(c, str)]
+    clear_image_references(messages)
     
     return {"response": response}
 

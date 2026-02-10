@@ -13,4 +13,4 @@ flash_attn>=2.5.0
 accelerate>=1.0.0
 timm>=0.9.10
 einops>=0.7.0
-pydantic>=2.0
+pydantic>=2.0,<3.0
