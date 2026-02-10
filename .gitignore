@@ -45,3 +45,4 @@ runpod/
 # Ignore large files
 *.tar.gz
 *.zip
+test_upgrade.py
