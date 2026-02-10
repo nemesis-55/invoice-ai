@@ -9,3 +9,4 @@ class LlmAttachment(BaseModel):
 class AssistantPayload(BaseModel):
     prompt: str
     attachments: Optional[List[LlmAttachment]] = None
+    deep_thinking: Optional[bool] = None
