@@ -9,3 +9,4 @@ class LlmAttachment(BaseModel):
 class AssistantPayload(BaseModel):
     prompt: str
     attachments: Optional[List[LlmAttachment]] = None
+    enable_thinking: bool = False  # Enable thinking mode for MiniCPM-V-4.5

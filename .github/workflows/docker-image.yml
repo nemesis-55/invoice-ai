@@ -2,9 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "copilot/upgrade-model-to-minicpm-v4-5" ]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "copilot/upgrade-model-to-minicpm-v4-5" ]
 
 jobs:
   build:
@@ -13,14 +13,19 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache
+        sudo docker system prune -af --volumes
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
       with:
-        username: arindamupadhyaygothia
-        password: B3YxWbuM3wJ4g37
+        username: arindamupadhyay
+        password: Alohmora@20
 
     - name: Set Docker image version tag
       id: vars
@@ -37,16 +42,16 @@ jobs:
         docker build \
           --no-cache \
           --file Dockerfile \
-          --tag arindamupadhyaygothia/invoice-ai:latest \
-          --tag arindamupadhyaygothia/invoice-ai:${VERSION_TAG} \
+          --tag arindamupadhyay/invoice-ai:latest \
+          --tag arindamupadhyay/invoice-ai:${VERSION_TAG} \
           --memory=30g \
           .
 
     - name: Push Docker image to Docker Hub (latest)
       run: |
-        docker push arindamupadhyaygothia/invoice-ai:latest
+        docker push arindamupadhyay/invoice-ai:latest
 
     - name: Push Docker image to Docker Hub (versioned)
       run: |
-        docker push arindamupadhyaygothia/invoice-ai:${VERSION_TAG}
+        docker push arindamupadhyay/invoice-ai:${VERSION_TAG}
  

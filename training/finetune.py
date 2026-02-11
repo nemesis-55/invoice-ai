@@ -25,7 +25,7 @@ from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="openbmb/MiniCPM-V-2")
+    model_name_or_path: Optional[str] = field(default="openbmb/MiniCPM-V-4_5")
 
 
 @dataclass
@@ -50,7 +50,7 @@ class TrainingArguments(transformers.TrainingArguments):
     )
     tune_vision: Optional[bool] = field(default=True)
     tune_llm: Optional[bool] = field(default=True)
-    llm_type: str = field(default="minicpm")
+    llm_type: str = field(default="qwen3")
     use_lora: Optional[bool] = field(default=False)
     max_slice_nums: Optional[int] = field(default=9)
 

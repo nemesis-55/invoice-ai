@@ -6,8 +6,8 @@ import os
 # Constants
 RAW_DATA_PATH = os.environ["RAW_DATA_OUTPUT"]
 TRAIN_DATA_PATH = os.environ["TRAIN_DATA_PATH"]
-TEST_DATA_PATH = os.environ["TEST_DATA_PATH"]
-SPLIT_RATIO = float(os.environ["SPLIT_RATIO"])
+# Note: TEST_DATA_PATH and SPLIT_RATIO are no longer used
+# LLamaFactory handles train/validation splitting internally via val_size parameter
 
 PROMPT_TEMPLATE = (
             "<image>\n"
@@ -44,6 +44,9 @@ def process_page(pickup_id, page_key, data):
     try:
         image_path = data.get("image_path")
         properties = data.get("data", {})
+
+        if image_path:
+            image_path = image_path.replace("\\", "/")
         
         # Handle both legacy and new format for unique IDs
         # Legacy: pickup_id_page_num (e.g., "185486_1")
@@ -52,10 +55,10 @@ def process_page(pickup_id, page_key, data):
         
         return {
             "id": unique_id,
-            "image": image_path,
+            "images": [image_path] if image_path else [],
             "conversations": [
-                {"role": "user", "content": PROMPT_TEMPLATE},
-                {"role": "assistant", "content": json.dumps(properties, indent=1)}
+                {"from": "human", "value": PROMPT_TEMPLATE},
+                {"from": "gpt", "value": json.dumps(properties, indent=1)}
             ]
         }
     except Exception as e:
@@ -83,24 +86,21 @@ def create_training_data(raw_data_path):
     print(f"Created {len(training_data)} training samples from raw data")
     return training_data
 
-def split_data(data, train_path, test_path, split_ratio=SPLIT_RATIO):
-    """Split data into training and testing sets and save to files."""
+def save_training_data(data, train_path):
+    """Save all data to training file. LLamaFactory will handle train/validation split."""
+    # Shuffle data for randomness
     random.shuffle(data)
-    split_idx = int(len(data) * split_ratio)
-    train_data, test_data = data[:split_idx], data[split_idx:]
-
+    
     with open(train_path, "w", encoding="utf-8") as f:
-        json.dump(train_data, f, indent=4)
-    with open(test_path, "w", encoding="utf-8") as f:
-        json.dump(test_data, f, indent=4)
-
-    print(f"Saved {len(train_data)} training samples to {train_path}")
-    print(f"Saved {len(test_data)} testing samples to {test_path}")
+        json.dump(data, f, indent=4)
+    
+    print(f"Saved {len(data)} training samples to {train_path}")
+    print(f"Note: LLamaFactory will automatically split this into train/validation based on val_size parameter")
 
 def main():
     training_data = create_training_data(RAW_DATA_PATH)
-    split_data(training_data, TRAIN_DATA_PATH, TEST_DATA_PATH)
-    print("Training and test data preparation complete.")
+    save_training_data(training_data, TRAIN_DATA_PATH)
+    print("Training data preparation complete.")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,81 @@
+### Model Configuration
+model_name_or_path: openbmb/MiniCPM-V-4_5
+trust_remote_code: true
+
+### Training Stage
+stage: sft
+do_train: true
+finetuning_type: lora
+
+### Incremental Training Mode
+# This configuration is optimized for incremental/continual learning
+# It assumes you've merged old and new data using incremental_dataset.py
+
+### Dataset Configuration
+dataset: invoice_training
+dataset_dir: llamafactory_configs
+media_dir: .
+template: minicpm_v
+cutoff_len: 8192
+overwrite_cache: true
+preprocessing_num_workers: 16
+
+### Output Configuration
+output_dir: output/minicpm_v45_incremental_lora
+logging_dir: output/minicpm_v45_incremental_lora/logs
+logging_steps: 10
+save_steps: 250
+save_total_limit: 3
+plot_loss: true
+overwrite_output_dir: false
+
+### Evaluation Configuration
+val_size: 0.2
+eval_strategy: steps
+eval_steps: 250
+per_device_eval_batch_size: 1
+
+### Training Hyperparameters - Optimized for Incremental Learning
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 5.0e-5  # LOWER than initial training (1e-5 -> 5e-5) to preserve old knowledge
+num_train_epochs: 3.0  # FEWER epochs than initial (5 -> 3) to prevent forgetting
+lr_scheduler_type: cosine
+warmup_ratio: 0.02  # Shorter warmup for incremental
+warmup_steps: 50
+bf16: true
+weight_decay: 0.02  # HIGHER regularization (0.01 -> 0.02) to prevent overfitting
+max_grad_norm: 0.5  # LOWER clipping (1.0 -> 0.5) for stability
+
+### LoRA Configuration - Same as base training
+lora_rank: 64
+lora_alpha: 128
+lora_dropout: 0.05
+lora_target: all
+additional_target: resampler
+
+### Resume from Checkpoint
+# IMPORTANT: Uncomment and set the checkpoint path from your previous training
+# resume_from_checkpoint: output/minicpm_v45_lora_invoice/checkpoint-5000
+
+### DeepSpeed Configuration (optional)
+# deepspeed: ds_config_zero2.json
+# ddp_timeout: 180000000
+
+### Hardware Optimization
+gradient_checkpointing: true
+ddp_find_unused_parameters: false
+
+### Logging and Monitoring
+report_to: tensorboard
+
+### Vision Model Specific
+freeze_vision_tower: true
+
+### Incremental Training Notes:
+# 1. Use incremental_dataset.py to merge old (30%) + new (100%) data
+# 2. Set resume_from_checkpoint to your base model checkpoint
+# 3. Lower learning rate (5e-5 instead of 1e-4)
+# 4. Fewer epochs (3 instead of 5)
+# 5. Higher regularization (weight_decay=0.02)
+# 6. Monitor validation loss on BOTH old and new test sets

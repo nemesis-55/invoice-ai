@@ -6,14 +6,14 @@ NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6001
 
-MODEL="GothiaDigitalSolutions/invoice-extractor-2.0"
-# or openbmb/MiniCPM-V-2, openbmb/MiniCPM-Llama3-V-2_5
+MODEL="openbmb/MiniCPM-V-4_5"
+# Updated to use MiniCPM-V-4.5 with Qwen3-8B backbone
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="path/to/trainging_data"
-EVAL_DATA="path/to/test_data"
-LLM_TYPE="qwen2" # if use openbmb/MiniCPM-V-2, please set LLM_TYPE=minicpm, if use openbmb/MiniCPM-Llama3-V-2_5, please set LLM_TYPE="llama3"
-MODEL_MAX_Length=8192 # if conduct multi-images sft, please set MODEL_MAX_Length=4096
+DATA="./data/train_data.json"
+EVAL_DATA="./data/test_data.json"
+LLM_TYPE="qwen3" # MiniCPM-V-4.5 uses Qwen3-8B backbone
+MODEL_MAX_Length=2048 # Optimized for invoice/document OCR (reduced from 8192)
 
 
 DISTRIBUTED_ARGS="
@@ -43,22 +43,25 @@ torchrun $DISTRIBUTED_ARGS finetune.py  \
     --max_slice_nums 9 \
     --max_steps 10000 \
     --eval_steps 1000 \
-    --output_dir output/output_minicpmv26 \
-    --logging_dir output/output_minicpmv26 \
+    --output_dir output/output_full_v45 \
+    --logging_dir output/output_full_v45/logs \
     --logging_strategy "steps" \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
-    --gradient_accumulation_steps 1 \
+    --gradient_accumulation_steps 8 \
     --evaluation_strategy "steps" \
     --save_strategy "steps" \
     --save_steps 1000 \
     --save_total_limit 10 \
-    --learning_rate 1e-6 \
-    --weight_decay 0.1 \
-    --adam_beta2 0.95 \
-    --warmup_ratio 0.01 \
+    --learning_rate 5e-6 \
+    --weight_decay 0.01 \
+    --adam_beta2 0.999 \
+    --warmup_ratio 0.03 \
+    --warmup_steps 100 \
+    --max_grad_norm 1.0 \
     --lr_scheduler_type "cosine" \
-    --logging_steps 1 \
+    --logging_steps 10 \
+    --num_train_epochs 3 \
     --gradient_checkpointing true \
     --deepspeed ds_config_zero2.json \
-    --report_to "tensorboard" 
+    --report_to "tensorboard"

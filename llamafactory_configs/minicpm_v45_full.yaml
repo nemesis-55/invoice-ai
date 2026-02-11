@@ -1,0 +1,60 @@
+### Model Configuration
+model_name_or_path: openbmb/MiniCPM-V-4_5
+
+### Training Stage
+stage: sft
+do_train: true
+finetuning_type: full
+
+### Dataset Configuration
+dataset: invoice_training
+dataset_dir: ./
+template: minicpm_v
+cutoff_len: 8192
+overwrite_cache: true
+preprocessing_num_workers: 16
+
+### Output Configuration
+output_dir: output/minicpm_v45_full_invoice
+logging_dir: output/minicpm_v45_full_invoice/logs
+logging_steps: 10
+save_steps: 1000
+save_total_limit: 3
+plot_loss: true
+overwrite_output_dir: false
+
+### Evaluation Configuration
+val_size: 0.2
+eval_strategy: steps
+eval_steps: 1000
+per_device_eval_batch_size: 1
+
+### Training Hyperparameters - Optimized for Full Fine-tuning OCR
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 5.0e-6  # Kept lower for full fine-tuning (more conservative)
+num_train_epochs: 3.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.03  # Increased from 0.01
+warmup_steps: 100
+bf16: true
+weight_decay: 0.01  # Reduced from 0.1 for OCR tasks
+adam_beta1: 0.9
+adam_beta2: 0.999  # Changed from 0.95 to 0.999 (standard AdamW)
+max_grad_norm: 1.0  # Added gradient clipping
+
+### DeepSpeed Configuration
+deepspeed: training/ds_config_zero2.json
+ddp_timeout: 180000000
+
+### Hardware Optimization
+gradient_checkpointing: true
+ddp_find_unused_parameters: false
+
+### Logging and Monitoring
+report_to: tensorboard
+
+### Vision Model Specific
+# Train both vision and language components
+freeze_vision_tower: false
+freeze_llm: false

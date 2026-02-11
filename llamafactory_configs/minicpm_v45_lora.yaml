@@ -1,0 +1,66 @@
+### Model Configuration
+model_name_or_path: openbmb/MiniCPM-V-4_5
+trust_remote_code: true
+
+### Training Stage
+stage: sft
+do_train: true
+finetuning_type: lora
+
+### Dataset Configuration
+dataset: invoice_training
+dataset_dir: llamafactory_configs
+media_dir: .
+template: minicpm_v
+cutoff_len: 8192  # Increased from 4096 to 8192 for better document understanding (if GPU memory allows)
+overwrite_cache: true
+preprocessing_num_workers: 16
+
+### Output Configuration
+output_dir: output/minicpm_v45_lora_invoice
+logging_dir: output/minicpm_v45_lora_invoice/logs
+logging_steps: 10
+save_steps: 250  # More frequent saving for incremental training (every 250 steps instead of 500)
+save_total_limit: 5  # Increased from 3 to 5 to keep more checkpoints for incremental training
+plot_loss: true
+overwrite_output_dir: false
+
+### Evaluation Configuration
+val_size: 0.2
+eval_strategy: steps
+eval_steps: 250  # More frequent saving for incremental training (every 250 steps instead of 500)
+per_device_eval_batch_size: 1
+
+### Training Hyperparameters - Optimized for OCR/Document Extraction
+per_device_train_batch_size: 2  # Increased from 1 for better gradients
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-5  # Increased from 5e-6 to 1e-5 (optimal for LoRA OCR tasks)
+num_train_epochs: 5.0  # Increased from 3 to 5 for better convergence on OCR
+lr_scheduler_type: cosine
+warmup_ratio: 0.03  # Increased from 0.01 for better warmup
+warmup_steps: 100
+bf16: true
+weight_decay: 0.01  # Added for regularization
+max_grad_norm: 1.0  # Added gradient clipping
+
+### LoRA Configuration - Optimized for Document Understanding
+lora_rank: 64  # Increased from 32 to 64 (optimal for OCR - better efficiency)
+lora_alpha: 128  # Increased from 32 to 128 (rank * 8 scaling rule)
+lora_dropout: 0.05
+lora_target: all  # Target all linear layers for better OCR adaptation
+additional_target: resampler  # Keep resampler for vision-language alignment
+
+### DeepSpeed Configuration (optional)
+# deepspeed: ds_config_zero2.json
+# ddp_timeout: 180000000
+
+### Hardware Optimization
+gradient_checkpointing: true
+ddp_find_unused_parameters: false
+
+### Logging and Monitoring
+report_to: tensorboard
+
+### Vision Model Specific
+# Freeze vision encoder or not (default: fine-tune vision)
+freeze_vision_tower: true
