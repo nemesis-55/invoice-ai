@@ -1,3 +1,7 @@
+import os
+# MUST be set before any CUDA operations to prevent memory fragmentation
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512,expandable_segments:True"
+
 import base64
 from pydantic import ValidationError
 from models.payloads.PromptPayload import PromptPayload
@@ -9,10 +13,6 @@ import fitz  # PyMuPDF for handling PDFs
 from transformers import AutoTokenizer, AutoModel
 import runpod
 from huggingface_hub import login, scan_cache_dir
-import base64
-import fitz  # PyMuPDF
-from peft import PeftModel
-import os
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
@@ -20,7 +20,8 @@ import io
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
 cache_name_env = os.getenv("INVOICE_AI_CACHE_DIR", "cache").strip()
-adaptor_type_env = os.getenv("MODEL_ADAPTOR", "GothiaDigitalSolutions/invoice-extractor-3.0").strip()
+adaptor_type_env = os.getenv("MODEL_ADAPTOR", "openbmb/MiniCPM-V-4_5").strip()
+DEEP_THINKING = os.getenv("DEEP_THINKING", "false").strip().lower() == "true"
 
 CACHE_DIR = f"/runpod-volume/{cache_name_env}"
 os.environ["HF_HOME"] = CACHE_DIR
@@ -61,6 +62,40 @@ except Exception as e:
 # Hugging Face login
 login(os.getenv("HF_TOKEN"))
 
+# Helper function for device map configuration
+def get_device_load_kwargs(device_map, retry=False):
+    """Build load_kwargs with device map and memory budget configuration."""
+    GPU_MAX_MEMORY = os.getenv("GPU_MAX_MEMORY", "40GiB").strip()
+    CPU_MAX_MEMORY = os.getenv("CPU_MAX_MEMORY", "16GiB").strip()
+    NUM_GPUS = int(os.getenv("NUM_GPUS", "0").strip())  # 0 = auto-detect
+    
+    load_kwargs = {
+        "device_map": device_map,
+        "attn_implementation": "sdpa",
+        "trust_remote_code": True,
+        "torch_dtype": torch.bfloat16,
+        "cache_dir": cache,
+    }
+    
+    if device_map == "auto":
+        # Auto-detect GPU count or use user-specified value
+        if NUM_GPUS <= 0:
+            detected_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
+        else:
+            detected_gpus = NUM_GPUS
+        
+        retry_label = " (retry)" if retry else ""
+        print(f"Multi-GPU mode{retry_label}: detected/configured {detected_gpus} GPU(s)")
+        
+        # Build max_memory dict for ALL available GPUs
+        max_mem = {i: GPU_MAX_MEMORY for i in range(detected_gpus)}
+        max_mem["cpu"] = CPU_MAX_MEMORY
+        load_kwargs["max_memory"] = max_mem
+        
+        print(f"Memory budget{retry_label}: {max_mem}")
+    
+    return load_kwargs
+
 # Load Model and Tokenizer
 def load_model_and_tokenizer():
     """Load the main model and tokenizer."""
@@ -80,16 +115,28 @@ def load_model_and_tokenizer():
     
     try:
         print("Loading model...")
-        model = AutoModel.from_pretrained(
-            ADAPTOR_TYPE,
-            device_map="auto",
-            attn_implementation="sdpa",
-            trust_remote_code=True, 
-            torch_dtype=torch.float16, 
-            cache_dir=cache
-        ).eval()
+        
+        # Determine device map
+        GPU_DEVICE = os.getenv("GPU_DEVICE", "single").strip()
+        
+        if GPU_DEVICE == "single":
+            device_map = "cuda:0"
+        elif GPU_DEVICE == "auto":
+            device_map = "auto"
+        else:
+            device_map = GPU_DEVICE
+
+        # Get load kwargs with device map and memory configuration
+        load_kwargs = get_device_load_kwargs(device_map)
+
+        model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
         print("Model loaded successfully")
         print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+        
+        # Log which devices the model landed on
+        if hasattr(model, 'hf_device_map'):
+            devices_used = set(str(v) for v in model.hf_device_map.values())
+            print(f"Model distributed across devices: {devices_used}")
 
     except Exception as e:
         print(f"Initial model load failed: {str(e)}")
@@ -102,16 +149,17 @@ def load_model_and_tokenizer():
 
             print("Attempting to load model again...")
             try:
-                model = AutoModel.from_pretrained(
-                    ADAPTOR_TYPE,
-                    device_map="auto",
-                    attn_implementation="sdpa",
-                    trust_remote_code=True, 
-                    torch_dtype=torch.float16, 
-                    cache_dir=cache
-                ).eval()
+                # Get load kwargs with retry flag
+                load_kwargs = get_device_load_kwargs(device_map, retry=True)
+
+                model = AutoModel.from_pretrained(ADAPTOR_TYPE, **load_kwargs).eval()
                 print("Model loaded successfully on second attempt")
                 print(f"Model loaded in {time.time() - start_time:.2f} seconds")
+                
+                # Log which devices the model landed on
+                if hasattr(model, 'hf_device_map'):
+                    devices_used = set(str(v) for v in model.hf_device_map.values())
+                    print(f"Model distributed across devices: {devices_used}")
             except Exception as e2:
                 MODEL_LOAD_ERROR = f"Failed to load model on both attempts: {str(e2)}"
                 print(f"Failed to load model: {MODEL_LOAD_ERROR}")
@@ -139,16 +187,36 @@ def load_model_and_tokenizer():
 # Convert PDF Page to Image
 def pdf_to_image(pdf_bytes, dpi=MODEL_DPI):
     """Convert a single-page PDF to an image."""
+    pdf_document = None
     try:
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = pdf_document.load_page(0)
-        pix = page.get_pixmap(dpi = dpi)
+        pix = page.get_pixmap(dpi=dpi)
         mode = "RGBA" if pix.alpha else "RGB"
-        image =  Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        image = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
         return image
     except Exception as e:
         print(f"Error converting PDF to image: {e}")
         raise ValueError(f"Error converting PDF to image: {e}")
+    finally:
+        if pdf_document:
+            pdf_document.close()
+
+# Deep Thinking Helper
+def prepare_messages_with_thinking(messages, deep_thinking=False):
+    """Prepare messages with optional deep thinking system prompt."""
+    if deep_thinking:
+        system_msg = {"role": "system", "content": "You are a helpful assistant. Think step by step carefully before responding."}
+        return [system_msg] + messages
+    return messages
+
+# Clear Image References Helper
+def clear_image_references(messages):
+    """Clear image references from messages to allow garbage collection."""
+    for msg in messages:
+        content = msg.get("content", [])
+        if isinstance(content, list):
+            msg["content"] = [c for c in content if isinstance(c, str)]
 
 # Generate Detailed Prompt
 def generate_prompt(pdf_bytes):
@@ -190,31 +258,32 @@ def generate_prompt(pdf_bytes):
         raise RuntimeError(f"Error generating prompt: {e}")
 
 # Handle Inference
-def perform_inference(messages, model, tokenizer):
+def perform_inference(messages, model, tokenizer, max_new_tokens=512):
     """Perform model inference."""
     try:
         with torch.no_grad():
             print(f"Inference messages: {messages}")
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=max_new_tokens)
             print(f"Inference response: {response}")
         return response
-    
     except RuntimeError as e:
         # detect CUDA OOM and provide actionable message
         if "out of memory" in str(e).lower():
             print(f"Inference failed (OOM): {e}")
             # try one more time after clearing cache (best-effort)
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             try:
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+                response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=max_new_tokens)
                 return response
             except Exception:
-                raise RuntimeError(
-                    "Inference failed due to CUDA OOM. Reduce max_new_tokens, use model/device offloading or a smaller model."
-                )
+                raise RuntimeError("Inference failed due to CUDA OOM.")
         print(f"Inference failed: {e}")
         raise RuntimeError(f"Inference failed: {e}")
+    finally:
+        # ALWAYS clean up after inference regardless of success/failure
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 # Main Request Handler
 def run(request):
@@ -225,6 +294,16 @@ def run(request):
         # Check for model load errors and attempt to reload
         if MODEL_LOAD_ERROR:
             print(f"Model load error detected: {MODEL_LOAD_ERROR}. Attempting to reload...")
+            
+            # Explicitly free old model to prevent VRAM leak during reload
+            if 'model' in globals() and model is not None:
+                del model
+            if 'tokenizer' in globals() and tokenizer is not None:
+                del tokenizer
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            import gc
+            gc.collect()
             
             model, tokenizer = load_model_and_tokenizer()
             if model is None or tokenizer is None:
@@ -245,6 +324,8 @@ def run(request):
             return handle_assistant_request(data)
         elif action == "CLASSIFICATION":
             return handle_classification(data)
+        else:
+            return {"error": f"Unknown action: {action}"}
     
     except Exception as e:
         print(f"Exception during processing: {e}")
@@ -252,28 +333,42 @@ def run(request):
 
 def handle_classification(data):
     try:
-        payload = PromptPayload(**data)
-    except (TypeError, ValidationError) as e:
-        raise TypeError(f"Invalid prompt payload: {e}")
+        try:
+            payload = PromptPayload(**data)
+        except (TypeError, ValidationError) as e:
+            raise TypeError(f"Invalid prompt payload: {e}")
 
-    image_b64 = payload.image
-    
-    if not image_b64:
-        raise ValueError("Missing image data.")
+        image_b64 = payload.image
+        
+        if not image_b64:
+            raise ValueError("Missing image data.")
 
-    try:
-        image_bytes = base64.b64decode(image_b64)
-        image = Image.open(io.BytesIO(image_bytes))
+        try:
+            image_bytes = base64.b64decode(image_b64)
+            image = Image.open(io.BytesIO(image_bytes))
+        except Exception as e:
+            raise ValueError(f"Error decoding image: {e}")
+        
+        # Determine if deep thinking should be used
+        use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
+        max_tokens = 2048 if use_deep_thinking else 512
+        
+        messages = [{"role": "user", "content": [image, payload.prompt]}]
+        messages = prepare_messages_with_thinking(messages, use_deep_thinking)
+        
+        response = perform_inference(messages, model, tokenizer, max_new_tokens=max_tokens)
+        
+        # Clear image references from messages to allow GC
+        clear_image_references(messages)
+        
+        try:
+            response = json.loads(response)
+        except Exception:
+            pass
+        return {"response": response}
     except Exception as e:
-        raise ValueError(f"Error decoding image: {e}")
-    
-    messages = [{"role": "user", "content": [image, payload.prompt]}]
-    response = perform_inference(messages, model, tokenizer)
-    try:
-        response = json.loads(response)
-    except Exception:
-        pass
-    return {"response": response}
+        print(f"Classification error: {e}")
+        return {"error": f"Classification error: {e}"}
 
 def handle_extract_invoice(data):
     try:
@@ -291,10 +386,23 @@ def handle_extract_invoice(data):
 
     pdf_bytes = base64.b64decode(pdf_data)
     prompt = generate_prompt(pdf_bytes)
-    response = perform_inference(prompt, model, tokenizer)
+    
+    # Determine if deep thinking should be used
+    use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
+    max_tokens = 2048 if use_deep_thinking else 512
+    
+    prompt = prepare_messages_with_thinking(prompt, use_deep_thinking)
+    response = perform_inference(prompt, model, tokenizer, max_new_tokens=max_tokens)
+
+    # Clear image references from messages to allow GC
+    clear_image_references(prompt)
 
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
-    response = json.loads(response)
+    try:
+        response = json.loads(response)
+    except Exception as e:
+        print(f"Error parsing JSON response: {e}")
+        return {"error": f"Error parsing JSON response: {e}"}
     
     # add key value pair for page number in response for all order items
     for item in response.get("OrderItemsList", []):
@@ -310,20 +418,30 @@ def handle_prompt(data):
         print(f"Invalid prompt payload: {e}")
         return {"error": f"Invalid prompt payload: {e}"}
     
+    # Determine if deep thinking should be used
+    use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
+    max_tokens = 2048 if use_deep_thinking else 512
+    
     messages = [{"role": "user", "content": payload.prompt}]
-    response = perform_inference(messages, model, tokenizer)
+    messages = prepare_messages_with_thinking(messages, use_deep_thinking)
+    
+    response = perform_inference(messages, model, tokenizer, max_new_tokens=max_tokens)
 
     # this assumes the response is a JSON string, so in the prompt it should be mentioned to return a JSON string
-    response = json.loads(response)
+    try:
+        response = json.loads(response)
+    except Exception as e:
+        print(f"Error parsing JSON response: {e}")
+        return {"error": f"Error parsing JSON response: {e}"}
     return {"response": response}
 
 # # Create a new handler function to handle assistant requests
 def handle_assistant_request(data):
     try:
         payload = AssistantPayload(**data)
-    except (TypeError, ValidationError)  as e:
+    except (TypeError, ValidationError) as e:
         print(f"Invalid prompt payload: {e}")
-        return{"error": f"Invalid prompt payload: {e}"}
+        return {"error": f"Invalid prompt payload: {e}"}
     
     images = []
     if payload.attachments:
@@ -336,8 +454,18 @@ def handle_assistant_request(data):
                 print(f"Error decoding attachment image: {e}")
                 return {"error": f"Error decoding attachment image: {e}"}
 
-    messages = [{"role":"user", "content": images + [payload.prompt]}]
-    response = perform_inference(messages, model, tokenizer)
+    # Determine if deep thinking should be used
+    use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
+    max_tokens = 2048 if use_deep_thinking else 512
+
+    messages = [{"role": "user", "content": images + [payload.prompt]}]
+    messages = prepare_messages_with_thinking(messages, use_deep_thinking)
+    
+    response = perform_inference(messages, model, tokenizer, max_new_tokens=max_tokens)
+    
+    # Clear image references from messages to allow GC
+    clear_image_references(messages)
+    
     return {"response": response}
 
 

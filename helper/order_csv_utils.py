@@ -1,5 +1,8 @@
 import json
 
+# NOTE: fieldnames has 15 items but the model outputs 12 fields per item in OrderItemsList.
+# PageNumber is appended separately in handler.py after inference (see handle_extract_invoice).
+# The model is prompted to output 12 fields per item in the specific order shown here (minus Discount, DiscountPercentage, PageNumber).
 fieldnames = ['Description', 'HsCode', 'HsCodeExport', 'Quantity', 'ArticleNumber', 'GrossWeight', 'NetWeight', 'CountryOfOrigin', 'NumberOfUnits', 'TypeOfUnit', 'PricePerPiece', 'NetAmount', 'Discount', 'DiscountPercentage' , 'PageNumber']
 def embed_order_items_list_in_json(order_json):
     """
