@@ -17,6 +17,7 @@ from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
 import io
+import re
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
 cache_name_env = os.getenv("INVOICE_AI_CACHE_DIR", "cache").strip()
@@ -239,8 +240,6 @@ def parse_json_response(response_text):
     - Finding bare JSON objects via regex
     - Returns fallback dict with raw response on parse failure
     """
-    import re
-    
     # Try direct parsing first
     try:
         return json.loads(response_text)
@@ -265,6 +264,8 @@ def parse_json_response(response_text):
             pass
     
     # Try finding JSON object with regex
+    # Note: This pattern handles simple nested objects (sufficient for classification response)
+    # For complex deeply nested structures, the direct JSON parsing above should succeed
     json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
     matches = re.findall(json_pattern, response_text)
     
@@ -395,7 +396,12 @@ def run(request):
 
 def handle_classification(data):
     try:
-        payload = PromptPayload(**data)
+        try:
+            payload = PromptPayload(**data)
+        except (TypeError, ValidationError) as e:
+            print(f"Invalid payload for classification: {e}")
+            return {"error": f"Invalid payload: {e}"}
+        
         subject_text = payload.prompt
 
         messages = [
