@@ -264,8 +264,10 @@ def parse_json_response(response_text):
             pass
     
     # Try finding JSON object with regex
-    # Note: This pattern handles simple nested objects (sufficient for classification response)
-    # For complex deeply nested structures, the direct JSON parsing above should succeed
+    # Note: This pattern handles simple nested objects (sufficient for classification response:
+    # {"customer_name": "...", "waybill": "..."} which is flat or has minimal nesting).
+    # Complex deeply nested structures should be caught by direct JSON parsing above.
+    # This is an intentional fallback for malformed responses, not a primary parser.
     json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
     matches = re.findall(json_pattern, response_text)
     
@@ -400,7 +402,7 @@ def handle_classification(data):
             payload = PromptPayload(**data)
         except (TypeError, ValidationError) as e:
             print(f"Invalid payload for classification: {e}")
-            return {"error": f"Invalid payload: {e}"}
+            return {"error": "Invalid payload: missing required fields or invalid format"}
         
         subject_text = payload.prompt
 
@@ -409,6 +411,8 @@ def handle_classification(data):
             {"role": "user", "content": subject_text}
         ]
 
+        # Use 128 tokens - sufficient for classification response:
+        # {"customer_name": "X", "waybill": "Y"} is ~20-40 tokens even with long values
         response = perform_inference(messages, model, tokenizer, max_new_tokens=128)
         response = parse_json_response(response)
 
