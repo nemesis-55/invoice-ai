@@ -16,7 +16,6 @@ from huggingface_hub import login, scan_cache_dir
 from helper.order_csv_utils import expand_order_items_list_to_json
 import time
 import json
-import io
 import re
 
 # Cache config: Ensure Hugging Face cache uses mounted volume (not /root)
