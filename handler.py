@@ -264,8 +264,8 @@ def parse_json_response(response_text):
             pass
     
     # Try finding JSON object with regex
-    # Note: This pattern handles simple nested objects (sufficient for classification response:
-    # {"customer_name": "...", "waybill": "..."} which is flat or has minimal nesting).
+    # Note: This pattern handles simple nested objects (sufficient for classification response
+    # like {"customer_name": "...", "waybill": "..."} which is flat or has minimal nesting).
     # Complex deeply nested structures should be caught by direct JSON parsing above.
     # This is an intentional fallback for malformed responses, not a primary parser.
     json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
@@ -402,7 +402,7 @@ def handle_classification(data):
             payload = PromptPayload(**data)
         except (TypeError, ValidationError) as e:
             print(f"Invalid payload for classification: {e}")
-            return {"error": "Invalid payload: missing required fields or invalid format"}
+            return {"error": "Invalid payload: 'prompt' field is required and must be a string"}
         
         subject_text = payload.prompt
 
