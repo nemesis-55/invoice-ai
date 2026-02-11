@@ -34,6 +34,16 @@ ADAPTOR_TYPE = adaptor_type_env
 cache = os.environ["HF_HOME"]
 MODEL_LOAD_ERROR = None
 
+CLASSIFICATION_SYSTEM_PROMPT = (
+    "You extract customer_name and waybill from email subject lines. "
+    "Respond with ONLY a JSON object, no other text.\n"
+    "Format: {\"customer_name\": \"...\", \"waybill\": \"...\"}\n"
+    "Rules:\n"
+    "- Use null if a value is not found\n"
+    "- Never guess or hallucinate values\n"
+    "- No explanation, no markdown, just raw JSON"
+)
+
 # One-time cache cleanup (remove old unreferenced revisions to free space)
 try:
     cache_info = scan_cache_dir(cache_dir=cache)
@@ -218,6 +228,58 @@ def clear_image_references(messages):
         if isinstance(content, list):
             msg["content"] = [c for c in content if isinstance(c, str)]
 
+# JSON Response Parser
+def parse_json_response(response_text):
+    """
+    Robustly parse JSON from model response with multiple fallback strategies.
+    
+    Handles:
+    - Direct JSON parsing
+    - Stripping markdown code blocks (```json ... ```)
+    - Finding bare JSON objects via regex
+    - Returns fallback dict with raw response on parse failure
+    """
+    import re
+    
+    # Try direct parsing first
+    try:
+        return json.loads(response_text)
+    except (json.JSONDecodeError, ValueError):
+        pass
+    
+    # Try stripping markdown code blocks
+    stripped = response_text.strip()
+    if stripped.startswith("```"):
+        # Remove opening ```json or ```
+        lines = stripped.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        # Remove closing ```
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+        
+        try:
+            return json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    
+    # Try finding JSON object with regex
+    json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+    matches = re.findall(json_pattern, response_text)
+    
+    for match in matches:
+        try:
+            return json.loads(match)
+        except (json.JSONDecodeError, ValueError):
+            continue
+    
+    # All parsing attempts failed - return fallback
+    return {
+        "raw_response": response_text,
+        "parse_error": True
+    }
+
 # Generate Detailed Prompt
 def generate_prompt(pdf_bytes):
     """Create the detailed prompt for the model."""
@@ -333,38 +395,17 @@ def run(request):
 
 def handle_classification(data):
     try:
-        try:
-            payload = PromptPayload(**data)
-        except (TypeError, ValidationError) as e:
-            raise TypeError(f"Invalid prompt payload: {e}")
+        payload = PromptPayload(**data)
+        subject_text = payload.prompt
 
-        image_b64 = payload.image
-        
-        if not image_b64:
-            raise ValueError("Missing image data.")
+        messages = [
+            {"role": "system", "content": CLASSIFICATION_SYSTEM_PROMPT},
+            {"role": "user", "content": subject_text}
+        ]
 
-        try:
-            image_bytes = base64.b64decode(image_b64)
-            image = Image.open(io.BytesIO(image_bytes))
-        except Exception as e:
-            raise ValueError(f"Error decoding image: {e}")
-        
-        # Determine if deep thinking should be used
-        use_deep_thinking = payload.deep_thinking if payload.deep_thinking is not None else DEEP_THINKING
-        max_tokens = 2048 if use_deep_thinking else 512
-        
-        messages = [{"role": "user", "content": [image, payload.prompt]}]
-        messages = prepare_messages_with_thinking(messages, use_deep_thinking)
-        
-        response = perform_inference(messages, model, tokenizer, max_new_tokens=max_tokens)
-        
-        # Clear image references from messages to allow GC
-        clear_image_references(messages)
-        
-        try:
-            response = json.loads(response)
-        except Exception:
-            pass
+        response = perform_inference(messages, model, tokenizer, max_new_tokens=128)
+        response = parse_json_response(response)
+
         return {"response": response}
     except Exception as e:
         print(f"Classification error: {e}")
