@@ -2,9 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "aditi/feature/feat.6678" ]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "aditi/feature/feat.6678" ]
 
 jobs:
   build:
@@ -19,8 +19,8 @@ jobs:
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
       with:
-        username: arindamupadhyaygothia
-        password: B3YxWbuM3wJ4g37
+        username: aditichandorkar
+        password: 7K5dGpHyUNji5tk
 
     - name: Set Docker image version tag
       id: vars
@@ -37,16 +37,16 @@ jobs:
         docker build \
           --no-cache \
           --file Dockerfile \
-          --tag arindamupadhyaygothia/invoice-ai:latest \
-          --tag arindamupadhyaygothia/invoice-ai:${VERSION_TAG} \
+          --tag aditichandorkar/invoice-ai:latest \
+          --tag aditichandorkar/invoice-ai:${VERSION_TAG} \
           --memory=30g \
           .
 
     - name: Push Docker image to Docker Hub (latest)
       run: |
-        docker push arindamupadhyaygothia/invoice-ai:latest
+        docker push aditichandorkar/invoice-ai:latest
 
     - name: Push Docker image to Docker Hub (versioned)
       run: |
-        docker push arindamupadhyaygothia/invoice-ai:${VERSION_TAG}
+        docker push aditichandorkar/invoice-ai:${VERSION_TAG}
  

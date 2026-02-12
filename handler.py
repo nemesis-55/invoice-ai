@@ -126,7 +126,7 @@ def load_model_and_tokenizer():
             {"role": "user", "content": "hey"}
         ]
         print(f"Test message: {messages}")
-        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+        response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
         print(f"Test response: {response}")
     except Exception as e:
         print(f"Test inference failed: {str(e)}")
@@ -195,7 +195,7 @@ def perform_inference(messages, model, tokenizer):
     try:
         with torch.no_grad():
             print(f"Inference messages: {messages}")
-            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=512)
+            response = model.chat(image=None, msgs=messages, tokenizer=tokenizer, max_new_tokens=8192)
             print(f"Inference response: {response}")
         return response
     
