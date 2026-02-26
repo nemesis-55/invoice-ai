@@ -2,9 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "copilot/upgrade-model-to-minicpm-v4-5" ]
+    branches: [ "develop" ]
   pull_request:
-    branches: [ "copilot/upgrade-model-to-minicpm-v4-5" ]
+    branches: [ "develop" ]
 
 jobs:
   build:
@@ -24,8 +24,8 @@ jobs:
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
       with:
-        username: arindamupadhyay
-        password: Alohmora@20
+        username: arindamupadhyaygothia
+        password: B3YxWbuM3wJ4g37
 
     - name: Set Docker image version tag
       id: vars
@@ -42,16 +42,16 @@ jobs:
         docker build \
           --no-cache \
           --file Dockerfile \
-          --tag arindamupadhyay/invoice-ai:latest \
-          --tag arindamupadhyay/invoice-ai:${VERSION_TAG} \
+          --tag arindamupadhyaygothia/invoice-ai:latest \
+          --tag arindamupadhyaygothia/invoice-ai:${VERSION_TAG} \
           --memory=30g \
           .
 
     - name: Push Docker image to Docker Hub (latest)
       run: |
-        docker push arindamupadhyay/invoice-ai:latest
+        docker push arindamupadhyaygothia/invoice-ai:latest
 
     - name: Push Docker image to Docker Hub (versioned)
       run: |
-        docker push arindamupadhyay/invoice-ai:${VERSION_TAG}
+        docker push arindamupadhyaygothia/invoice-ai:${VERSION_TAG}
  

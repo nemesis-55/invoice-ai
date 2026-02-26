@@ -11,8 +11,16 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "$SCRIPT_DIR"
 
 # Configuration
-CONFIG_FILE="llamafactory_configs/minicpm_v45_lora.yaml"
 DATASET_INFO="llamafactory_configs/dataset_info.json"
+
+# Use incremental config if --incremental flag is passed
+if [ "$1" = "--incremental" ]; then
+    CONFIG_FILE="llamafactory_configs/minicpm_v45_incremental_lora.yaml"
+    echo "Mode: INCREMENTAL TRAINING (continuing from previous adapter)"
+else
+    CONFIG_FILE="llamafactory_configs/minicpm_v45_lora.yaml"
+    echo "Mode: INITIAL TRAINING (fresh LoRA)"
+fi
 
 # Check if LLamaFactory is installed
 if ! python -c "import llamafactory" 2>/dev/null; then
@@ -53,5 +61,4 @@ echo ""
 echo "=========================================="
 echo "Training completed!"
 echo "=========================================="
-echo "Model saved to: output/minicpm_v45_lora_invoice"
-echo "Logs available at: output/minicpm_v45_lora_invoice/logs"
+echo "Config used: $CONFIG_FILE"
