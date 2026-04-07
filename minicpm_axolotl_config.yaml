@@ -1,0 +1,126 @@
+base_model: openbmb/MiniCPM-V-2_6
+model_type: minicpm
+
+# QLoRA configuration for memory efficiency on RTX 5090 (32GB each)
+load_in_4bit: true
+load_in_8bit: false
+
+# Adapter configuration - preserving existing LoRA settings
+adapter: qlora
+lora_r: 64
+lora_alpha: 128  # Increased from 64 for better performance
+lora_dropout: 0.05
+lora_target_linear: true
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+# Model configuration
+sequence_len: 8192  # Matching existing model_max_length
+sample_packing: false  # Disable for multimodal data
+pad_to_sequence_len: true
+
+# Training configuration optimized for dual RTX 5090
+micro_batch_size: 1
+gradient_accumulation_steps: 4  # Increased for better gradient stability
+num_epochs: 3
+optimizer: adamw_bnb_8bit  # Memory efficient optimizer
+lr_scheduler: cosine
+learning_rate: 5.0e-6  # Matching existing learning rate
+train_on_inputs: false
+group_by_length: false  # Disable for multimodal data
+
+# Memory optimization settings
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+bf16: auto  # Matching existing fp16/bf16 configuration
+fp16: false
+tf32: true  # Enable for RTX 5090
+
+# Flash Attention 2 for speed optimization
+flash_attention: true
+xformers_attention: false  # Use flash attention instead
+
+# Evaluation settings
+val_set_size: 0.1
+eval_steps: 1000
+eval_sample_packing: false
+evals_per_epoch: 1
+
+# Logging and checkpointing
+logging_steps: 1
+output_dir: ./output/axolotl_minicpm_lora
+save_steps: 1000
+save_total_limit: 10
+
+# Dataset configuration for multimodal invoice data
+datasets:
+  - path: ./data/train_data.json
+    type: chat_template  # Will be converted by our script
+    chat_template: minicpm_v
+    conversation:
+      - input
+      - output
+
+# Deepspeed configuration for dual GPU setup
+deepspeed: ./configs/deepspeed_zero2_axolotl.json
+
+# Advanced settings for RTX 5090 optimization
+warmup_steps: 100
+weight_decay: 0.1
+adam_beta1: 0.9
+adam_beta2: 0.95
+adam_epsilon: 1.0e-8
+max_grad_norm: 1.0
+
+# Multi-GPU settings
+ddp_timeout: 3600
+ddp_bucket_cap_mb: 200
+
+# Wandb/Tensorboard logging
+wandb_project: invoice-ai-axolotl
+wandb_watch: gradients
+wandb_run_id: minicpm_qlora_invoice
+wandb_log_model: checkpoint
+
+# Hub settings for model saving
+hub_model_id: 
+hub_strategy: every_save
+
+# Special tokens configuration
+special_tokens:
+  bos_token: "<s>"
+  eos_token: "</s>"
+  unk_token: "<unk>"
+  pad_token: "<|endoftext|>"
+
+# Multimodal specific settings
+multimodal: true
+is_vision_model: true
+
+# Training stability
+early_stopping_patience: 3
+load_best_model_at_end: true
+metric_for_best_model: eval_loss
+greater_is_better: false
+
+# Resume training capability
+resume_from_checkpoint: 
+strict: false
+
+# BNB (Bits and Bytes) configuration for QLoRA
+bnb_config_kwargs:
+  load_in_4bit: true
+  bnb_4bit_use_double_quant: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: bfloat16
+
+# Model preparation
+preprocess_model_inputs: true
+trust_remote_code: true
