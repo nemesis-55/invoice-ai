@@ -1,0 +1,60 @@
+{
+  "gpu_profiles": {
+    "rtx_4090": {
+      "name": "NVIDIA RTX 4090",
+      "vram_gb": 24,
+      "recommended_settings": {
+        "model_precision": "16bit",
+        "gpu_device": "single",
+        "max_new_tokens": 4096,
+        "gpu_max_memory": "22GiB",
+        "batch_size": 1,
+        "cache_implementation": "sdpa"
+      },
+      "description": "Optimized for RTX 4090 with 24GB VRAM. Uses 16-bit precision with conservative memory budget."
+    },
+    "rtx_5090": {
+      "name": "NVIDIA RTX 5090",
+      "vram_gb": 32,
+      "recommended_settings": {
+        "model_precision": "16bit",
+        "gpu_device": "single",
+        "max_new_tokens": 8192,
+        "gpu_max_memory": "30GiB",
+        "batch_size": 1,
+        "cache_implementation": "sdpa"
+      },
+      "description": "Optimized for RTX 5090 with 32GB VRAM. Uses 16-bit precision for maximum quality."
+    },
+    "rtx_pro_6000": {
+      "name": "NVIDIA RTX PRO 6000",
+      "vram_gb": 96,
+      "architecture": "Blackwell",
+      "memory_type": "GDDR7",
+      "memory_bandwidth_tbs": 1.8,
+      "cuda_cores": 24064,
+      "tdp_watts": 600,
+      "recommended_settings": {
+        "model_precision": "16bit",
+        "gpu_device": "single",
+        "max_new_tokens": 16384,
+        "gpu_max_memory": "90GiB",
+        "batch_size": 4,
+        "cache_implementation": "sdpa",
+        "deep_thinking": true
+      },
+      "description": "Optimized for RTX PRO 6000 with 96GB GDDR7 VRAM (Blackwell architecture). Runs full 16-bit precision with massive headroom for deep thinking, large batch sizes, and extended token generation. Can handle the full MiniCPM-V 4.5 model with room to spare for KV cache and multi-document processing."
+    }
+  },
+  "active_profile": "rtx_4090",
+  "fallback_settings": {
+    "model_precision": "16bit",
+    "gpu_device": "single",
+    "max_new_tokens": 4096,
+    "gpu_max_memory": "40GiB",
+    "batch_size": 1,
+    "cache_implementation": "sdpa"
+  },
+  "config_version": "2.0",
+  "last_updated": "2026-02-10"
+}

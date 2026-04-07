@@ -38,6 +38,7 @@ RUN pip uninstall -y torch torchvision torchaudio && \
 # Copy application files
 COPY requirements.txt ./
 COPY handler.py .
+COPY gpu_config.json ./
 COPY helper/ ./helper/
 COPY models/ ./models/
 
